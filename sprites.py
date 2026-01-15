@@ -93,3 +93,41 @@ class Player(pygame.sprite.Sprite):
         self.rect.centerx = round(self.pos.x)
         self.rect.centery = round(self.pos.y)
         self.hitbox.center = self.rect.center
+
+
+class Enemy(pygame.sprite.Sprite):
+    
+    def __init__(self, game, groups, pos, player):
+        super().__init__(groups)
+        self.game = game
+        self.player = player
+        
+        # Charge l'image ou crée une surface de debug
+        try:
+            self.image = pygame.image.load('assets/graphics/snot.png').convert_alpha()
+            self.image = pygame.transform.scale(self.image, (40, 40))
+        except:
+            self.image = pygame.Surface((40, 40))
+            self.image.fill((50, 205, 50))  # Lime Green
+        
+        self.rect = self.image.get_rect(center=pos)
+        self.hitbox = self.rect.inflate(-10, -10)
+        
+        self.pos = pygame.math.Vector2(pos)
+        self.speed = 150
+    
+    def move(self, dt):
+        # Vecteur vers le joueur
+        direction = self.player.pos - self.pos
+        
+        if direction.length() > 0:
+            direction = direction.normalize()
+        
+        self.pos += direction * self.speed * dt
+        
+        self.rect.centerx = round(self.pos.x)
+        self.rect.centery = round(self.pos.y)
+        self.hitbox.center = self.rect.center
+    
+    def update(self, dt):
+        self.move(dt)
