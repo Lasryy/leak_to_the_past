@@ -10,7 +10,7 @@ FPS = 60
 TITLE = "Leak To The Past"
 
 # Taille des tuiles
-TILESIZE = 64
+TILESIZE = 128
 
 # Couleurs de base (RGB)
 WHITE = (255, 255, 255)
