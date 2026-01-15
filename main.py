@@ -93,6 +93,7 @@ class Game:
         # Groupes de sprites
         self.all_sprites = CameraGroup()
         self.bullets = pygame.sprite.Group()
+        self.enemies = pygame.sprite.Group()
         
         self.player = Player(
             self,
@@ -112,7 +113,7 @@ class Game:
         x = self.player.rect.centerx + distance * cos(radians(angle))
         y = self.player.rect.centery + distance * sin(radians(angle))
         
-        Enemy(self, self.all_sprites, (x, y), self.player)
+        Enemy(self, [self.all_sprites, self.enemies], (x, y), self.player)
     
     def shoot(self, mouse_pos):
         # Position du joueur à l'écran (toujours au centre)
@@ -140,6 +141,9 @@ class Game:
     
     def update(self, dt):
         self.all_sprites.update(dt)
+        
+        # Collisions balles/ennemis
+        pygame.sprite.groupcollide(self.bullets, self.enemies, True, True)
     
     def draw(self):
         self.screen.fill(BLACK)
