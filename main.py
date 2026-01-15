@@ -7,7 +7,7 @@ from pygame import mixer
 from random import randint
 from math import cos, sin, radians
 from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, TILESIZE
-from sprites import Player, Enemy, Bullet
+from sprites import Player, Enemy, Bullet, Particle
 
 
 class CameraGroup(pygame.sprite.Group):
@@ -161,6 +161,10 @@ class Game:
                 enemy.health -= 1
                 
                 if enemy.health <= 0:
+                    # Particules d'explosion
+                    for _ in range(8):
+                        Particle(enemy.pos, enemy.color, self.all_sprites)
+                    
                     # Le jaune spawn 2 verts en mourant
                     if enemy.monster_type == 'yellow':
                         for _ in range(2):

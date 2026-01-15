@@ -1,6 +1,7 @@
 # Sprites pour Leak To The Past
 
 import pygame
+from random import uniform
 from settings import TILESIZE, CYAN
 
 
@@ -257,3 +258,33 @@ class Bullet(pygame.sprite.Sprite):
         # Disparaît après lifetime
         if pygame.time.get_ticks() - self.spawn_time > self.lifetime:
             self.kill()
+
+
+class Particle(pygame.sprite.Sprite):
+    
+    def __init__(self, pos, color, groups):
+        super().__init__(groups)
+        
+        # Petit carré coloré
+        self.image = pygame.Surface((4, 4))
+        self.image.fill(color if color else (255, 255, 255))
+        
+        self.rect = self.image.get_rect(center=pos)
+        self.pos = pygame.math.Vector2(pos)
+        
+        # Direction aléatoire
+        self.direction = pygame.math.Vector2(uniform(-1, 1), uniform(-1, 1))
+        if self.direction.length() > 0:
+            self.direction = self.direction.normalize()
+        
+        self.speed = uniform(100, 300)
+        self.spawn_time = pygame.time.get_ticks()
+        self.lifetime = uniform(200, 500)
+    
+    def update(self, dt):
+        self.pos += self.direction * self.speed * dt
+        self.rect.center = (round(self.pos.x), round(self.pos.y))
+        
+        if pygame.time.get_ticks() - self.spawn_time > self.lifetime:
+            self.kill()
+
