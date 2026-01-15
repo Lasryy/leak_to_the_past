@@ -1,19 +1,16 @@
 """
 Leak To The Past - Module Principal du Jeu
-Un projet de jeu basé sur Pygame
 """
 
 import pygame
 from pygame import mixer
-from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK
+from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, TILESIZE
 from sprites import Player
 
 
 class CameraGroup(pygame.sprite.Group):
-    """Groupe de sprites avec gestion de la caméra centrée sur le joueur."""
     
     def __init__(self):
-        """Initialise le groupe caméra."""
         super().__init__()
         self.display_surface = pygame.display.get_surface()
         
@@ -23,29 +20,38 @@ class CameraGroup(pygame.sprite.Group):
         
         # Décalage de la caméra
         self.offset = pygame.math.Vector2()
+        
+        # Création du sol dynamique
+        self.floor_surf = pygame.Surface((TILESIZE, TILESIZE))
+        self.floor_surf.fill((20, 20, 20))
+        pygame.draw.rect(self.floor_surf, (40, 40, 40), self.floor_surf.get_rect(), width=1)
     
     def custom_draw(self, player):
-        """
-        Dessine tous les sprites avec décalage selon la position du joueur.
-        
-        Args:
-            player: Le sprite joueur à suivre
-        """
-        # Calcul du décalage pour centrer la caméra sur le joueur
+        # Calcul de l'offset
         self.offset.x = player.rect.centerx - self.half_width
         self.offset.y = player.rect.centery - self.half_height
         
-        # Dessine chaque sprite avec le décalage
+        # Tuilage infini du sol
+        start_col = int(self.offset.x // TILESIZE) - 1
+        end_col = int((self.offset.x + WINDOW_WIDTH) // TILESIZE) + 1
+        start_row = int(self.offset.y // TILESIZE) - 1
+        end_row = int((self.offset.y + WINDOW_HEIGHT) // TILESIZE) + 1
+        
+        for row in range(start_row, end_row + 1):
+            for col in range(start_col, end_col + 1):
+                x = col * TILESIZE - self.offset.x
+                y = row * TILESIZE - self.offset.y
+                self.display_surface.blit(self.floor_surf, (x, y))
+        
+        # Dessine les sprites
         for sprite in self.sprites():
             offset_pos = sprite.rect.topleft - self.offset
             self.display_surface.blit(sprite.image, offset_pos)
 
 
 class Game:
-    """Classe principale gérant l'initialisation, la boucle de jeu et le rendu."""
     
     def __init__(self):
-        """Initialise pygame, le mixer audio et les composants du jeu."""
         pygame.init()
         mixer.init()
         
@@ -54,10 +60,8 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         
-        # Groupe de sprites avec caméra
         self.all_sprites = CameraGroup()
         
-        # Création du joueur au centre de l'écran
         self.player = Player(
             self,
             self.all_sprites,
@@ -65,30 +69,20 @@ class Game:
         )
     
     def handle_events(self):
-        """Gère tous les événements pygame."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
     
     def update(self, dt):
-        """
-        Met à jour l'état du jeu.
-        
-        Args:
-            dt: Delta time en secondes
-        """
         self.all_sprites.update(dt)
     
     def draw(self):
-        """Affiche les objets du jeu à l'écran."""
         self.screen.fill(BLACK)
         self.all_sprites.custom_draw(self.player)
         pygame.display.flip()
     
     def run(self):
-        """Boucle principale du jeu."""
         while self.running:
-            # Calcul du delta time (en secondes)
             dt = self.clock.tick(FPS) / 1000
             
             self.handle_events()

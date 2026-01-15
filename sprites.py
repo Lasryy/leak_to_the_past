@@ -21,7 +21,9 @@ class Player(pygame.sprite.Sprite):
         
         self.pos = pygame.math.Vector2(pos)
         self.direction = pygame.math.Vector2(0, 0)
-        self.speed = 300
+        
+        # Vitesse du joueur
+        self.speed = 500
     
     def load_images(self):
         self.images = {}
