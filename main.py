@@ -113,7 +113,20 @@ class Game:
         x = self.player.rect.centerx + distance * cos(radians(angle))
         y = self.player.rect.centery + distance * sin(radians(angle))
         
-        Enemy(self, [self.all_sprites, self.enemies], (x, y), self.player)
+        # Type aléatoire (59% normal, 20% green, 15% yellow, 5% red, 1% purple)
+        roll = randint(1, 100)
+        if roll <= 59:
+            monster_type = 'normal'
+        elif roll <= 79:
+            monster_type = 'green'
+        elif roll <= 94:
+            monster_type = 'yellow'
+        elif roll <= 99:
+            monster_type = 'red'
+        else:
+            monster_type = 'purple'
+        
+        Enemy(self, [self.all_sprites, self.enemies], (x, y), self.player, monster_type)
     
     def shoot(self, mouse_pos):
         # Position du joueur à l'écran (toujours au centre)
@@ -139,11 +152,27 @@ class Game:
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 self.shoot(event.pos)
     
+    def check_bullet_collisions(self):
+        # Collisions balles/ennemis avec gestion de la vie
+        hits = pygame.sprite.groupcollide(self.bullets, self.enemies, True, False)
+        
+        for bullet, enemies_hit in hits.items():
+            for enemy in enemies_hit:
+                enemy.health -= 1
+                
+                if enemy.health <= 0:
+                    # Le jaune spawn 2 verts en mourant
+                    if enemy.monster_type == 'yellow':
+                        for _ in range(2):
+                            offset = pygame.math.Vector2(randint(-50, 50), randint(-50, 50))
+                            Enemy(self, [self.all_sprites, self.enemies], 
+                                  enemy.pos + offset, self.player, 'green')
+                    
+                    enemy.kill()
+    
     def update(self, dt):
         self.all_sprites.update(dt)
-        
-        # Collisions balles/ennemis
-        pygame.sprite.groupcollide(self.bullets, self.enemies, True, True)
+        self.check_bullet_collisions()
     
     def draw(self):
         self.screen.fill(BLACK)

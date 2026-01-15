@@ -97,14 +97,31 @@ class Player(pygame.sprite.Sprite):
 
 class Enemy(pygame.sprite.Sprite):
     
-    def __init__(self, game, groups, pos, player):
+    # Config des types de monstres
+    TYPES = {
+        'normal': {'color': None, 'speed': 150, 'health': 1},
+        'green': {'color': (100, 255, 100), 'speed': 250, 'health': 1},
+        'yellow': {'color': (255, 255, 100), 'speed': 200, 'health': 2},
+        'red': {'color': (255, 50, 50), 'speed': 100, 'health': 10},
+        'purple': {'color': (200, 50, 200), 'speed': 300, 'health': 2}
+    }
+    
+    def __init__(self, game, groups, pos, player, monster_type='normal'):
         super().__init__(groups)
         self.game = game
         self.player = player
+        self.monster_type = monster_type
+        self.groups_ref = groups
+        
+        # Stats selon le type
+        config = self.TYPES[monster_type]
+        self.speed = config['speed']
+        self.health = config['health']
+        self.color = config['color']
         
         self.load_images()
         
-        # Image par défaut (vers le joueur = sud)
+        # Image par défaut
         self.image = self.images['south']
         self.direction_name = 'south'
         
@@ -112,7 +129,10 @@ class Enemy(pygame.sprite.Sprite):
         self.hitbox = self.rect.inflate(-10, -10)
         
         self.pos = pygame.math.Vector2(pos)
-        self.speed = 150
+        
+        # Timer TP pour le violet
+        self.tp_cooldown = 3000
+        self.last_tp = pygame.time.get_ticks()
     
     def load_images(self):
         self.images = {}
@@ -123,9 +143,18 @@ class Enemy(pygame.sprite.Sprite):
             'north-east', 'north-west', 'south-east', 'south-west'
         ]
         
+        # Taille selon le type
+        size = 128 if self.monster_type == 'yellow' else 64
+        
         for direction in directions:
             image = pygame.image.load(f'{rotations_path}{direction}.png').convert_alpha()
-            self.images[direction] = pygame.transform.scale(image, (64, 64))
+            image = pygame.transform.scale(image, (size, size))
+            
+            # Applique la couleur si définie
+            if self.color:
+                image.fill(self.color, special_flags=pygame.BLEND_MULT)
+            
+            self.images[direction] = image
     
     def update_image(self, direction):
         if direction.length() == 0:
@@ -168,6 +197,36 @@ class Enemy(pygame.sprite.Sprite):
     
     def update(self, dt):
         self.move(dt)
+        
+        # TP du violet
+        if self.monster_type == 'purple':
+            self.try_teleport()
+    
+    def try_teleport(self):
+        now = pygame.time.get_ticks()
+        if now - self.last_tp < self.tp_cooldown:
+            return
+        
+        # Trouve l'ennemi le plus proche du joueur (autre que soi)
+        closest = None
+        min_dist = float('inf')
+        
+        for sprite in self.game.enemies:
+            if sprite is self:
+                continue
+            dist = (sprite.pos - self.player.pos).length()
+            if dist < min_dist:
+                min_dist = dist
+                closest = sprite
+        
+        # TP derrière cet ennemi
+        if closest:
+            direction = (closest.pos - self.player.pos)
+            if direction.length() > 0:
+                direction = direction.normalize()
+                self.pos = closest.pos + direction * 50
+                self.rect.center = (round(self.pos.x), round(self.pos.y))
+                self.last_tp = now
 
 
 class Bullet(pygame.sprite.Sprite):
