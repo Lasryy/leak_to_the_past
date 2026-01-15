@@ -7,7 +7,7 @@ from pygame import mixer
 from random import randint
 from math import cos, sin, radians
 from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, TILESIZE
-from sprites import Player, Enemy
+from sprites import Player, Enemy, Bullet
 
 
 class CameraGroup(pygame.sprite.Group):
@@ -90,7 +90,9 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         
+        # Groupes de sprites
         self.all_sprites = CameraGroup()
+        self.bullets = pygame.sprite.Group()
         
         self.player = Player(
             self,
@@ -112,12 +114,29 @@ class Game:
         
         Enemy(self, self.all_sprites, (x, y), self.player)
     
+    def shoot(self, mouse_pos):
+        # Position du joueur à l'écran (toujours au centre)
+        player_screen_pos = pygame.math.Vector2(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
+        mouse_vec = pygame.math.Vector2(mouse_pos)
+        
+        # Calcul de la direction
+        direction = mouse_vec - player_screen_pos
+        
+        # Crée la balle
+        Bullet(
+            self.player.rect.center,
+            direction,
+            [self.all_sprites, self.bullets]
+        )
+    
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == self.enemy_event:
                 self.spawn_enemy()
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                self.shoot(event.pos)
     
     def update(self, dt):
         self.all_sprites.update(dt)
