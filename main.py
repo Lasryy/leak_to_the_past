@@ -25,6 +25,26 @@ class CameraGroup(pygame.sprite.Group):
         self.floor_surf = pygame.Surface((TILESIZE, TILESIZE))
         self.floor_surf.fill((20, 20, 20))
         pygame.draw.rect(self.floor_surf, (40, 40, 40), self.floor_surf.get_rect(), width=1)
+        
+        # Fog of war avec alpha
+        self.fog_surf = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
+        
+        # Génère la texture de lumière
+        self.light_mask = self.generate_flashlight(450)
+        self.light_rect = self.light_mask.get_rect()
+    
+    @staticmethod
+    def generate_flashlight(radius):
+        """Génère une texture de lampe torche avec dégradé radial."""
+        size = radius * 2
+        surf = pygame.Surface((size, size), pygame.SRCALPHA)
+        
+        # Cercles concentriques pour créer le dégradé
+        for r in range(radius, 0, -1):
+            alpha = int(255 * (1 - r / radius))
+            pygame.draw.circle(surf, (0, 0, 0, alpha), (radius, radius), r)
+        
+        return surf
     
     def custom_draw(self, player):
         # Calcul de l'offset
@@ -47,6 +67,16 @@ class CameraGroup(pygame.sprite.Group):
         for sprite in self.sprites():
             offset_pos = sprite.rect.topleft - self.offset
             self.display_surface.blit(sprite.image, offset_pos)
+        
+        self.fog_surf.fill((20, 20, 35, 250))
+        
+        # Position de la lumière au centre de l'écran
+        self.light_rect.center = (self.half_width, self.half_height)
+        
+        self.fog_surf.blit(self.light_mask, self.light_rect, special_flags=pygame.BLEND_RGBA_SUB)
+        
+        # Dessine le fog
+        self.display_surface.blit(self.fog_surf, (0, 0))
 
 
 class Game:
