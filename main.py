@@ -4,8 +4,10 @@ Leak To The Past - Module Principal du Jeu
 
 import pygame
 from pygame import mixer
+from random import randint
+from math import cos, sin, radians
 from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, TILESIZE
-from sprites import Player
+from sprites import Player, Enemy
 
 
 class CameraGroup(pygame.sprite.Group):
@@ -35,11 +37,9 @@ class CameraGroup(pygame.sprite.Group):
     
     @staticmethod
     def generate_flashlight(radius):
-        """Génère une texture de lampe torche avec dégradé radial."""
         size = radius * 2
         surf = pygame.Surface((size, size), pygame.SRCALPHA)
         
-        # Cercles concentriques pour créer le dégradé
         for r in range(radius, 0, -1):
             alpha = int(255 * (1 - r / radius))
             pygame.draw.circle(surf, (0, 0, 0, alpha), (radius, radius), r)
@@ -97,11 +97,27 @@ class Game:
             self.all_sprites,
             (WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
         )
+        
+        # Timer pour spawn des ennemis
+        self.enemy_event = pygame.event.custom_type()
+        pygame.time.set_timer(self.enemy_event, 1000)
+    
+    def spawn_enemy(self):
+        # Spawn en cercle autour du joueur
+        distance = randint(1000, 1200)
+        angle = randint(0, 360)
+        
+        x = self.player.rect.centerx + distance * cos(radians(angle))
+        y = self.player.rect.centery + distance * sin(radians(angle))
+        
+        Enemy(self, self.all_sprites, (x, y), self.player)
     
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+            elif event.type == self.enemy_event:
+                self.spawn_enemy()
     
     def update(self, dt):
         self.all_sprites.update(dt)
