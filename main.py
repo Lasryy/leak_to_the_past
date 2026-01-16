@@ -81,6 +81,15 @@ class CameraGroup(pygame.sprite.Group):
 
 class Game:
     
+    # Points par type de monstre
+    SCORE_VALUES = {
+        'normal': 10,
+        'green': 15,
+        'yellow': 25,
+        'red': 50,
+        'purple': 100
+    }
+    
     def __init__(self):
         pygame.init()
         mixer.init()
@@ -89,6 +98,9 @@ class Game:
         pygame.display.set_caption(TITLE)
         self.clock = pygame.time.Clock()
         self.running = True
+        
+        # Police pour le HUD
+        self.font = pygame.font.Font(None, 40)
         
         # Timer pour spawn des ennemis
         self.enemy_event = pygame.event.custom_type()
@@ -107,6 +119,10 @@ class Game:
             self.all_sprites,
             (WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
         )
+        
+        # Score et vie
+        self.score = 0
+        self.hearts = 1  # 1 cœur au départ, max 3
     
     def spawn_enemy(self):
         # Spawn en cercle autour du joueur
@@ -116,13 +132,13 @@ class Game:
         x = self.player.rect.centerx + distance * cos(radians(angle))
         y = self.player.rect.centery + distance * sin(radians(angle))
         
-        # Type aléatoire (59% normal, 20% green, 15% yellow, 5% red, 1% purple)
+        # Type aléatoire (62% normal, 20% green, 15% yellow, 2% red, 1% purple)
         roll = randint(1, 100)
-        if roll <= 59:
+        if roll <= 62:
             monster_type = 'normal'
-        elif roll <= 79:
+        elif roll <= 82:
             monster_type = 'green'
-        elif roll <= 94:
+        elif roll <= 97:
             monster_type = 'yellow'
         elif roll <= 99:
             monster_type = 'red'
@@ -139,6 +155,30 @@ class Game:
         # Calcul de la direction
         direction = mouse_vec - player_screen_pos
         
+        # Fait regarder le joueur vers la souris
+        if direction.length() > 0:
+            norm_dir = direction.normalize()
+            
+            # Détermine la direction (8 directions)
+            if norm_dir.y < -0.4 and abs(norm_dir.x) < 0.4:
+                self.player.direction_name = 'north'
+            elif norm_dir.y > 0.4 and abs(norm_dir.x) < 0.4:
+                self.player.direction_name = 'south'
+            elif norm_dir.x > 0.4 and abs(norm_dir.y) < 0.4:
+                self.player.direction_name = 'east'
+            elif norm_dir.x < -0.4 and abs(norm_dir.y) < 0.4:
+                self.player.direction_name = 'west'
+            elif norm_dir.y < 0 and norm_dir.x > 0:
+                self.player.direction_name = 'north-east'
+            elif norm_dir.y < 0 and norm_dir.x < 0:
+                self.player.direction_name = 'north-west'
+            elif norm_dir.y > 0 and norm_dir.x > 0:
+                self.player.direction_name = 'south-east'
+            elif norm_dir.y > 0 and norm_dir.x < 0:
+                self.player.direction_name = 'south-west'
+            
+            self.player.image = self.player.static_images[self.player.direction_name]
+        
         # Crée la balle
         Bullet(
             self.player.rect.center,
@@ -153,7 +193,9 @@ class Game:
             elif event.type == self.enemy_event:
                 self.spawn_enemy()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                self.shoot(event.pos)
+                # Peut tirer seulement si immobile
+                if not self.player.is_moving:
+                    self.shoot(event.pos)
     
     def check_bullet_collisions(self):
         # Collisions balles/ennemis avec gestion de la vie
@@ -167,6 +209,13 @@ class Game:
                     # Particules d'explosion
                     for _ in range(8):
                         Particle(enemy.pos, enemy.color, self.all_sprites)
+                    
+                    # Score selon le type
+                    self.score += self.SCORE_VALUES.get(enemy.monster_type, 10)
+                    
+                    # Rouge donne un cœur (max 3)
+                    if enemy.monster_type == 'red' and self.hearts < 3:
+                        self.hearts += 1
                     
                     # Le jaune spawn 2 verts en mourant
                     if enemy.monster_type == 'yellow':
@@ -184,12 +233,35 @@ class Game:
         # Mort du joueur (collision hitbox)
         for enemy in self.enemies:
             if self.player.hitbox.colliderect(enemy.hitbox):
-                self.start_new_game()
+                self.hearts -= 1
+                if self.hearts <= 0:
+                    self.start_new_game()
+                else:
+                    # Juste tuer l'ennemi qui a touché
+                    enemy.kill()
                 break
+    
+    def draw_ui(self):
+        # Score en haut à droite avec contour
+        score_text = f'Score: {self.score}'
+        
+        # Contour noir
+        shadow = self.font.render(score_text, True, (0, 0, 0))
+        self.screen.blit(shadow, (WINDOW_WIDTH - 201, 21))
+        
+        # Texte blanc
+        score_surf = self.font.render(score_text, True, (255, 255, 255))
+        self.screen.blit(score_surf, (WINDOW_WIDTH - 200, 20))
+        
+        # Cœurs en haut à gauche
+        for i in range(self.hearts):
+            pygame.draw.circle(self.screen, (255, 50, 50), (30 + i * 40, 30), 15)
+            pygame.draw.circle(self.screen, (200, 30, 30), (30 + i * 40, 30), 15, 2)
     
     def draw(self):
         self.screen.fill(BLACK)
         self.all_sprites.custom_draw(self.player)
+        self.draw_ui()
         pygame.display.flip()
     
     def run(self):

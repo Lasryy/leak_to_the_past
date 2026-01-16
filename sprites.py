@@ -127,7 +127,7 @@ class Enemy(pygame.sprite.Sprite):
         'green': {'color': (100, 255, 100), 'speed': 250, 'health': 1},
         'yellow': {'color': (255, 255, 100), 'speed': 200, 'health': 2},
         'red': {'color': (255, 50, 50), 'speed': 100, 'health': 10},
-        'purple': {'color': (200, 50, 200), 'speed': 300, 'health': 2}
+        'purple': {'color': (200, 50, 200), 'speed': 350, 'health': 2}
     }
     
     def __init__(self, game, groups, pos, player, monster_type='normal'):
@@ -157,13 +157,22 @@ class Enemy(pygame.sprite.Sprite):
         self.image = self.static_images['south']
         
         self.rect = self.image.get_rect(center=pos)
-        self.hitbox = self.rect.inflate(-40, -40)
+        
+        # Hitbox plus petite pour le purple (plus dur à toucher)
+        if monster_type == 'purple':
+            self.hitbox = self.rect.inflate(-50, -50)
+        else:
+            self.hitbox = self.rect.inflate(-40, -40)
         
         self.pos = pygame.math.Vector2(pos)
         
-        # Timer TP pour le violet
-        self.tp_cooldown = 3000
+        # Timer TP pour le violet (très fréquent)
+        self.tp_cooldown = 800 if monster_type == 'purple' else 3000
         self.last_tp = pygame.time.get_ticks()
+        
+        # Mouvement zigzag pour purple
+        self.zigzag_timer = 0
+        self.zigzag_offset = 1
     
     def load_images(self):
         directions = [
@@ -226,6 +235,18 @@ class Enemy(pygame.sprite.Sprite):
         direction = self.player.pos - self.pos
         
         if direction.length() > 0:
+            direction = direction.normalize()
+        
+        # Zigzag pour le purple (plus dur à viser)
+        if self.monster_type == 'purple':
+            self.zigzag_timer += dt
+            if self.zigzag_timer > 0.2:
+                self.zigzag_timer = 0
+                self.zigzag_offset *= -1
+            
+            # Perpendiculaire à la direction
+            perp = pygame.math.Vector2(-direction.y, direction.x)
+            direction = direction + perp * self.zigzag_offset * 0.5
             direction = direction.normalize()
         
         self.get_direction_name(direction)
