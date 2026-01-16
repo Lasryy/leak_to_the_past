@@ -101,6 +101,17 @@ class Game:
         
         # Police pour le HUD
         self.font = pygame.font.Font(None, 40)
+        self.small_font = pygame.font.Font(None, 24)
+        self.hotbar_font = pygame.font.Font('assets/font/Monocraft.ttf', 18)
+        
+        # Charge l'image du spray nasal 
+        spray_img = pygame.image.load('assets/graphics/HUD/nasal_spray.png').convert_alpha()
+        spray_img = pygame.transform.scale(spray_img, (40, 40))
+        self.spray_icon = pygame.transform.rotate(spray_img, -45)
+        
+        # Charge l'image du coeur
+        heart_img = pygame.image.load('assets/graphics/HUD/heart.png').convert_alpha()
+        self.heart_icon = pygame.transform.scale(heart_img, (24, 24))
         
         # Timer pour spawn des ennemis
         self.enemy_event = pygame.event.custom_type()
@@ -123,6 +134,7 @@ class Game:
         # Score et vie
         self.score = 0
         self.hearts = 1  # 1 cœur au départ, max 3
+        self.sprays = 99  # Nombre de sprays (infini pour l'instant)
     
     def spawn_enemy(self):
         # Spawn en cercle autour du joueur
@@ -242,21 +254,57 @@ class Game:
                 break
     
     def draw_ui(self):
-        # Score en haut à droite avec contour
-        score_text = f'Score: {self.score}'
+        # === HOTBAR EN BAS (style Minecraft - 9 slots) ===
+        slot_size = 50
+        slot_margin = 3
+        num_slots = 9
+        hotbar_width = num_slots * (slot_size + slot_margin) + slot_margin
+        hotbar_height = slot_size + slot_margin * 2
+        hotbar_x = WINDOW_WIDTH // 2 - hotbar_width // 2
+        hotbar_y = WINDOW_HEIGHT - hotbar_height - 10
         
-        # Contour noir
-        shadow = self.font.render(score_text, True, (0, 0, 0))
-        self.screen.blit(shadow, (WINDOW_WIDTH - 201, 21))
+        # Fond du hotbar
+        pygame.draw.rect(self.screen, (50, 50, 50), (hotbar_x, hotbar_y, hotbar_width, hotbar_height))
+        pygame.draw.rect(self.screen, (30, 30, 30), (hotbar_x, hotbar_y, hotbar_width, hotbar_height), 2)
         
-        # Texte blanc
-        score_surf = self.font.render(score_text, True, (255, 255, 255))
-        self.screen.blit(score_surf, (WINDOW_WIDTH - 200, 20))
+        # Dessine les 9 slots
+        for i in range(num_slots):
+            sx = hotbar_x + slot_margin + i * (slot_size + slot_margin)
+            sy = hotbar_y + slot_margin
+            
+            # Fond du slot
+            pygame.draw.rect(self.screen, (80, 80, 80), (sx, sy, slot_size, slot_size))
+            
+            # Bordure (blanche si sélectionné, grise sinon)
+            if i == 0:
+                pygame.draw.rect(self.screen, (255, 255, 255), (sx, sy, slot_size, slot_size), 2)
+                # Spray nasal dans le premier slot
+                spray_rect = self.spray_icon.get_rect(center=(sx + slot_size // 2, sy + slot_size // 2))
+                self.screen.blit(self.spray_icon, spray_rect)
+            else:
+                pygame.draw.rect(self.screen, (40, 40, 40), (sx, sy, slot_size, slot_size), 1)
         
-        # Cœurs en haut à gauche
+        # === CŒURS AU-DESSUS DU HOTBAR (à gauche) ===
+        heart_y = hotbar_y - 28
         for i in range(self.hearts):
-            pygame.draw.circle(self.screen, (255, 50, 50), (30 + i * 40, 30), 15)
-            pygame.draw.circle(self.screen, (200, 30, 30), (30 + i * 40, 30), 15, 2)
+            heart_rect = self.heart_icon.get_rect(center=(hotbar_x + 15 + i * 28, heart_y))
+            self.screen.blit(self.heart_icon, heart_rect)
+        
+        # === NOM DE L'ITEM AU CENTRE AU-DESSUS DU HOTBAR ===
+        item_name = "Nasal Spray"
+        name_shadow = self.hotbar_font.render(item_name, True, (0, 0, 0))
+        name_surf = self.hotbar_font.render(item_name, True, (255, 255, 255))
+        name_x = WINDOW_WIDTH // 2 - name_surf.get_width() // 2
+        name_y = hotbar_y - 25
+        self.screen.blit(name_shadow, (name_x + 1, name_y + 1))
+        self.screen.blit(name_surf, (name_x, name_y))
+        
+        # === SCORE EN HAUT A DROITE ===
+        score_text = f'Score: {self.score}'
+        shadow = self.hotbar_font.render(score_text, True, (0, 0, 0))
+        self.screen.blit(shadow, (WINDOW_WIDTH - 151, 21))
+        score_surf = self.hotbar_font.render(score_text, True, (255, 255, 255))
+        self.screen.blit(score_surf, (WINDOW_WIDTH - 150, 20))
     
     def draw(self):
         self.screen.fill(BLACK)
