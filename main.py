@@ -4,7 +4,7 @@ Leak To The Past - Module Principal du Jeu
 
 import pygame
 from pygame import mixer
-from random import randint, random
+from random import randint, random, choices
 from math import cos, sin, radians
 from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, WHITE, TILESIZE, MAX_AMMO, DROP_CHANCE
 from sprites import Player, Enemy, Bullet, Particle, Puddle, Item
@@ -155,9 +155,11 @@ class Game:
         )
         
         # Score et vie
+        # Score et vie
         self.score = 0
         self.hearts = 1  # 1 cœur au départ, max 3
         self.sprays = 99  # Nombre de sprays (infini pour l'instant)
+        self.game_start_time = pygame.time.get_ticks()
     
     def spawn_enemy(self):
         # Spawn en cercle autour du joueur
@@ -167,20 +169,30 @@ class Game:
         x = self.player.rect.centerx + distance * cos(radians(angle))
         y = self.player.rect.centery + distance * sin(radians(angle))
         
-        # Type aléatoire (60% normal, 15% green, 15% yellow, 7% blue, 2% red, 1% purple)
-        roll = randint(1, 100)
-        if roll <= 60:
+        # Types possibles selon le TEMPS DE JEU (Progression par vagues temporelles)
+        # 0s, 30s, 60s, 90s, 120s
+        elapsed_time = (pygame.time.get_ticks() - self.game_start_time) / 1000
+        
+        potential_spawns = [
+            {'type': 'normal', 'weight': 60, 'min_time': 0},
+            {'type': 'green', 'weight': 15, 'min_time': 30},
+            {'type': 'yellow', 'weight': 15, 'min_time': 60},
+            {'type': 'blue', 'weight': 7, 'min_time': 90},
+            {'type': 'red', 'weight': 2, 'min_time': 90},
+            {'type': 'purple', 'weight': 1, 'min_time': 120}
+        ]
+        
+        # Filtre les ennemis débloqués
+        available = [s for s in potential_spawns if elapsed_time >= s['min_time']]
+        
+        if not available:
+            # Fallback
             monster_type = 'normal'
-        elif roll <= 75:
-            monster_type = 'green'
-        elif roll <= 90:
-            monster_type = 'yellow'
-        elif roll <= 97:
-            monster_type = 'blue'
-        elif roll <= 99:
-            monster_type = 'red'
         else:
-            monster_type = 'purple'
+            # Choix pondéré parmi les disponibles
+            types = [s['type'] for s in available]
+            weights = [s['weight'] for s in available]
+            monster_type = choices(types, weights=weights, k=1)[0]
         
         Enemy(self, [self.all_sprites, self.enemies], (x, y), self.player, monster_type)
     
@@ -274,9 +286,17 @@ class Game:
                         Puddle(enemy.pos, [self.all_sprites, self.puddles])
                         
                     # Drop d'item (munitions)
-                    # Toujours pour le bleu, sinon chance globale
-                    if enemy.monster_type == 'blue' or random() < DROP_CHANCE:
+                    # Toujours pour le bleu
+                    # Sinon, chance globale ajustée : si déjà un item au sol, chance réduite
+                    if enemy.monster_type == 'blue':
                         Item(enemy.pos, [self.all_sprites, self.items])
+                    else:
+                        current_chance = DROP_CHANCE
+                        if len(self.items) > 0:
+                            current_chance = DROP_CHANCE / 5  # Réduit fortement si item au sol
+                            
+                        if random() < current_chance:
+                            Item(enemy.pos, [self.all_sprites, self.items])
                     
                     enemy.kill()
     
@@ -316,10 +336,11 @@ class Game:
                 self.game_over_timer = pygame.time.get_ticks()
         
         # Pickup items (Munitions)
-        hit_item = pygame.sprite.spritecollideany(self.player, self.items)
-        if hit_item:
-            hit_item.kill()
-            self.player.ammo = MAX_AMMO
+        # Collision précise avec Hitbox
+        for item in self.items:
+            if self.player.hitbox.colliderect(item.hitbox):
+                item.kill()
+                self.player.ammo = MAX_AMMO
 
     def update_menu(self):
         keys = pygame.key.get_pressed()

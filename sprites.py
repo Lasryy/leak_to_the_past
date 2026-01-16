@@ -468,7 +468,7 @@ class Item(pygame.sprite.Sprite):
         self.image = pygame.transform.rotate(self.image, -45)
         
         self.rect = self.image.get_rect(center=pos)
-        self.hitbox = self.rect.inflate(-10, -10)
+        self.hitbox = self.rect.inflate(-30, -30)
         
         self.pos = pygame.math.Vector2(pos)
         self.spawn_time = pygame.time.get_ticks()
