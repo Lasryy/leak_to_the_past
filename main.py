@@ -4,10 +4,10 @@ Leak To The Past - Module Principal du Jeu
 
 import pygame
 from pygame import mixer
-from random import randint
+from random import randint, random
 from math import cos, sin, radians
-from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, TILESIZE
-from sprites import Player, Enemy, Bullet, Particle
+from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, TILESIZE, MAX_AMMO, DROP_CHANCE
+from sprites import Player, Enemy, Bullet, Particle, Puddle, EnemyBullet, Item
 
 
 class CameraGroup(pygame.sprite.Group):
@@ -63,11 +63,20 @@ class CameraGroup(pygame.sprite.Group):
                 y = row * TILESIZE - self.offset.y
                 self.display_surface.blit(self.floor_surf, (x, y))
         
-        # Dessine les sprites
-        for sprite in self.sprites():
+        # Sépare les flaques et les autres sprites
+        puddles = [s for s in self.sprites() if isinstance(s, Puddle)]
+        others = [s for s in self.sprites() if not isinstance(s, Puddle)]
+        
+        # Dessine les flaques en premier (au sol)
+        for sprite in puddles:
             offset_pos = sprite.rect.topleft - self.offset
             self.display_surface.blit(sprite.image, offset_pos)
-        
+            
+        # Dessine les autres sprites triés par Y (Y-sort)
+        for sprite in sorted(others, key=lambda s: s.rect.centery):
+            offset_pos = sprite.rect.topleft - self.offset
+            self.display_surface.blit(sprite.image, offset_pos)
+            
         self.fog_surf.fill((20, 20, 35, 250))
         
         # Position de la lumière au centre de l'écran
@@ -124,6 +133,9 @@ class Game:
         self.all_sprites = CameraGroup()
         self.bullets = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
+        self.puddles = pygame.sprite.Group()
+        self.enemy_bullets = pygame.sprite.Group()
+        self.items = pygame.sprite.Group()
         
         self.player = Player(
             self,
@@ -144,14 +156,16 @@ class Game:
         x = self.player.rect.centerx + distance * cos(radians(angle))
         y = self.player.rect.centery + distance * sin(radians(angle))
         
-        # Type aléatoire (62% normal, 20% green, 15% yellow, 2% red, 1% purple)
+        # Type aléatoire (60% normal, 15% green, 15% yellow, 7% blue, 2% red, 1% purple)
         roll = randint(1, 100)
-        if roll <= 62:
+        if roll <= 60:
             monster_type = 'normal'
-        elif roll <= 82:
+        elif roll <= 75:
             monster_type = 'green'
-        elif roll <= 97:
+        elif roll <= 90:
             monster_type = 'yellow'
+        elif roll <= 97:
+            monster_type = 'blue'
         elif roll <= 99:
             monster_type = 'red'
         else:
@@ -160,6 +174,12 @@ class Game:
         Enemy(self, [self.all_sprites, self.enemies], (x, y), self.player, monster_type)
     
     def shoot(self, mouse_pos):
+        # Vérifie les munitions
+        if self.player.ammo <= 0:
+            return
+            
+        self.player.ammo -= 1
+        
         # Position du joueur à l'écran (toujours au centre)
         player_screen_pos = pygame.math.Vector2(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
         mouse_vec = pygame.math.Vector2(mouse_pos)
@@ -236,6 +256,15 @@ class Game:
                             Enemy(self, [self.all_sprites, self.enemies], 
                                   enemy.pos + offset, self.player, 'green')
                     
+                    # Les verts et jaunes laissent une flaque
+                    if enemy.monster_type in ['green', 'yellow']:
+                        Puddle(enemy.pos, [self.all_sprites, self.puddles])
+                        
+                    # Drop d'item (munitions)
+                    # Toujours pour le bleu, sinon chance globale
+                    if enemy.monster_type == 'blue' or random() < DROP_CHANCE:
+                        Item(enemy.pos, [self.all_sprites, self.items])
+                    
                     enemy.kill()
     
     def update(self, dt):
@@ -252,6 +281,30 @@ class Game:
                     # Juste tuer l'ennemi qui a touché
                     enemy.kill()
                 break
+
+        # Gestion des flaques de morve (Ralentissement avec hitbox)
+        is_slowed = False
+        for puddle in self.puddles:
+            if self.player.hitbox.colliderect(puddle.hitbox):
+                is_slowed = True
+                break
+        
+        if is_slowed:
+            self.player.speed = self.player.base_speed / 2
+        else:
+            self.player.speed = self.player.base_speed
+        
+        # Collision balles ennemies / Joueur
+        if pygame.sprite.spritecollide(self.player, self.enemy_bullets, True, pygame.sprite.collide_mask):
+            self.hearts -= 1
+            if self.hearts <= 0:
+                self.start_new_game()
+
+        # Pickup items (Munitions)
+        hit_item = pygame.sprite.spritecollideany(self.player, self.items)
+        if hit_item:
+            hit_item.kill()
+            self.player.ammo = MAX_AMMO
     
     def draw_ui(self):
         # === HOTBAR EN BAS (style Minecraft - 9 slots) ===
@@ -281,6 +334,28 @@ class Game:
                 # Spray nasal dans le premier slot
                 spray_rect = self.spray_icon.get_rect(center=(sx + slot_size // 2, sy + slot_size // 2))
                 self.screen.blit(self.spray_icon, spray_rect)
+                
+                # Barre de durabilité dans le slot (si utilisé)
+                if self.player.ammo < self.player.max_ammo:
+                    ratio = self.player.ammo / self.player.max_ammo
+                    bar_w = slot_size - 6
+                    bar_h = 4
+                    bar_x = sx + 3
+                    bar_y = sy + slot_size - 8
+                    
+                    # Couleur
+                    if ratio > 0.5:
+                        color = (0, 255, 0) # Vert
+                    elif ratio > 0.2:
+                        color = (255, 165, 0) # Orange
+                    else:
+                        color = (255, 0, 0) # Rouge
+                    
+                    # Fond noir
+                    pygame.draw.rect(self.screen, (0, 0, 0), (bar_x, bar_y, bar_w, bar_h))
+                    # Barre
+                    pygame.draw.rect(self.screen, color, (bar_x, bar_y, bar_w * ratio, bar_h))
+                    
             else:
                 pygame.draw.rect(self.screen, (40, 40, 40), (sx, sy, slot_size, slot_size), 1)
         

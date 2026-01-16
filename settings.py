@@ -22,3 +22,9 @@ BLUE = (0, 0, 255)
 # Couleurs néon
 CYAN = (0, 255, 255)
 MAGENTA = (255, 0, 255)
+
+# Paramètres de jeu
+MAX_AMMO = 30
+ITEM_DESPAWN_TIME = 10000  # 10 secondes
+DROP_CHANCE = 0.15  # 15% de chance de drop
+
