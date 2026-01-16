@@ -6,8 +6,8 @@ import pygame
 from pygame import mixer
 from random import randint, random
 from math import cos, sin, radians
-from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, TILESIZE, MAX_AMMO, DROP_CHANCE
-from sprites import Player, Enemy, Bullet, Particle, Puddle, EnemyBullet, Item
+from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, WHITE, TILESIZE, MAX_AMMO, DROP_CHANCE
+from sprites import Player, Enemy, Bullet, Particle, Puddle, Item
 
 
 class CameraGroup(pygame.sprite.Group):
@@ -111,7 +111,11 @@ class Game:
         # Police pour le HUD
         self.font = pygame.font.Font(None, 40)
         self.small_font = pygame.font.Font(None, 24)
-        self.hotbar_font = pygame.font.Font('assets/font/Monocraft.ttf', 18)
+        try:
+            self.hotbar_font = pygame.font.Font('assets/font/Monocraft.ttf', 18)
+        except FileNotFoundError:
+            self.hotbar_font = pygame.font.Font(None, 18)
+            print("Warning: Monocraft.ttf not found, using default font.")
         
         # Charge l'image du spray nasal 
         spray_img = pygame.image.load('assets/graphics/HUD/nasal_spray.png').convert_alpha()
@@ -125,6 +129,13 @@ class Game:
         # Timer pour spawn des ennemis
         self.enemy_event = pygame.event.custom_type()
         pygame.time.set_timer(self.enemy_event, 1000)
+        
+        self.enemy_event = pygame.event.custom_type()
+        pygame.time.set_timer(self.enemy_event, 1000)
+        
+        # Etats du jeu
+        self.state = 'menu' # menu, game, game_over
+        self.game_over_timer = 0
         
         self.start_new_game()
     
@@ -236,6 +247,8 @@ class Game:
         for bullet, enemies_hit in hits.items():
             for enemy in enemies_hit:
                 enemy.health -= 1
+                enemy.is_hit = True
+                enemy.last_hit_time = pygame.time.get_ticks()
                 
                 if enemy.health <= 0:
                     # Particules d'explosion
@@ -276,7 +289,8 @@ class Game:
             if self.player.hitbox.colliderect(enemy.hitbox):
                 self.hearts -= 1
                 if self.hearts <= 0:
-                    self.start_new_game()
+                    self.state = 'game_over'
+                    self.game_over_timer = pygame.time.get_ticks()
                 else:
                     # Juste tuer l'ennemi qui a touché
                     enemy.kill()
@@ -298,13 +312,48 @@ class Game:
         if pygame.sprite.spritecollide(self.player, self.enemy_bullets, True, pygame.sprite.collide_mask):
             self.hearts -= 1
             if self.hearts <= 0:
-                self.start_new_game()
-
+                self.state = 'game_over'
+                self.game_over_timer = pygame.time.get_ticks()
+        
         # Pickup items (Munitions)
         hit_item = pygame.sprite.spritecollideany(self.player, self.items)
         if hit_item:
             hit_item.kill()
             self.player.ammo = MAX_AMMO
+
+    def update_menu(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_SPACE]:
+            self.start_new_game()
+            self.state = 'game'
+            
+    def update_game_over(self):
+        if pygame.time.get_ticks() - self.game_over_timer > 3000:
+            self.state = 'menu'
+
+    def draw_menu(self):
+        self.screen.fill(BLACK)
+        title_surf = self.font.render(TITLE, True, (0, 255, 255)) # Cyan title
+        text_surf = self.font.render("PRESS SPACE TO START", True, WHITE)
+        
+        title_rect = title_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 50))
+        text_rect = text_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 50))
+        
+        self.screen.blit(title_surf, title_rect)
+        self.screen.blit(text_surf, text_rect)
+        pygame.display.flip()
+
+    def draw_game_over(self):
+        self.screen.fill(BLACK)
+        title_surf = self.font.render("GAME OVER", True, (255, 0, 0))
+        score_surf = self.font.render(f"Score: {self.score}", True, WHITE)
+        
+        title_rect = title_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 50))
+        score_rect = score_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 50))
+        
+        self.screen.blit(title_surf, title_rect)
+        self.screen.blit(score_surf, score_rect)
+        pygame.display.flip()
     
     def draw_ui(self):
         # === HOTBAR EN BAS (style Minecraft - 9 slots) ===
@@ -392,8 +441,16 @@ class Game:
             dt = self.clock.tick(FPS) / 1000
             
             self.handle_events()
-            self.update(dt)
-            self.draw()
+            
+            if self.state == 'menu':
+                self.update_menu()
+                self.draw_menu()
+            elif self.state == 'game':
+                self.update(dt)
+                self.draw()
+            elif self.state == 'game_over':
+                self.update_game_over()
+                self.draw_game_over()
         
         pygame.quit()
 

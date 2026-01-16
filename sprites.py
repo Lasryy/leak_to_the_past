@@ -106,10 +106,6 @@ class Player(pygame.sprite.Sprite):
             self.direction.x = -1
         elif keys[pygame.K_d] or keys[pygame.K_RIGHT]:
             self.direction.x = 1
-        
-        if self.direction.length() > 0:
-            self.direction = self.direction.normalize()
-            self.is_moving = True
         if self.direction.length() > 0:
             self.direction = self.direction.normalize()
             self.is_moving = True
@@ -183,6 +179,11 @@ class Enemy(pygame.sprite.Sprite):
         # Mouvement zigzag pour purple
         self.zigzag_timer = 0
         self.zigzag_offset = 1
+        
+        # Hit Flash
+        self.last_hit_time = 0
+        self.hit_duration = 100 # ms
+        self.is_hit = False
         
         # Pour le bleu (Tir)
         self.shoot_cooldown = 2000  # 2 secondes
@@ -283,6 +284,17 @@ class Enemy(pygame.sprite.Sprite):
         
         self.get_direction_name(direction)
         self.animate(dt)
+        
+        # Effet flash blanc si touché
+        if self.is_hit:
+            current = pygame.time.get_ticks()
+            if current - self.last_hit_time < self.hit_duration:
+                # Version blanche
+                white_surf = self.image.copy()
+                white_surf.fill((255, 255, 255, 255), special_flags=pygame.BLEND_ADD)
+                self.image = white_surf
+            else:
+                self.is_hit = False
         
         self.pos += direction * self.speed * dt
         
