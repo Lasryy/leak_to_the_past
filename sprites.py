@@ -13,21 +13,25 @@ class Player(pygame.sprite.Sprite):
         
         self.load_images()
         
-        # Image par défaut
-        self.image = self.images['south']
+        # Animation
         self.direction_name = 'south'
+        self.frame_index = 0
+        self.animation_speed = 10
+        self.is_moving = False
+        
+        # Image par défaut (statique)
+        self.image = self.static_images['south']
         
         self.rect = self.image.get_rect(center=pos)
-        self.hitbox = self.rect.inflate(-20, -20)
+        self.hitbox = self.rect.inflate(-60, -60)
         
         self.pos = pygame.math.Vector2(pos)
         self.direction = pygame.math.Vector2(0, 0)
-        
-        # Vitesse du joueur
         self.speed = 500
     
     def load_images(self):
-        self.images = {}
+        # Images statiques (rotations)
+        self.static_images = {}
         rotations_path = 'assets/graphics/leak/rotations/'
         
         directions = [
@@ -37,20 +41,30 @@ class Player(pygame.sprite.Sprite):
         
         for direction in directions:
             image = pygame.image.load(f'{rotations_path}{direction}.png').convert_alpha()
-            self.images[direction] = pygame.transform.scale(image, (TILESIZE, TILESIZE))
+            self.static_images[direction] = pygame.transform.scale(image, (TILESIZE, TILESIZE))
+        
+        # Animations
+        self.animations = {}
+        animations_path = 'assets/graphics/leak/animations/'
+        
+        for direction in directions:
+            self.animations[direction] = []
+            for i in range(6):
+                image = pygame.image.load(f'{animations_path}{direction}/frame_00{i}.png').convert_alpha()
+                self.animations[direction].append(pygame.transform.scale(image, (TILESIZE, TILESIZE)))
     
-    def update_image(self):
+    def get_direction_name(self):
         if self.direction.x == 0 and self.direction.y == 0:
             return
         
         # 8 directions
-        if self.direction.y < 0 and self.direction.x == 0:
+        if self.direction.y < 0 and abs(self.direction.x) < 0.4:
             self.direction_name = 'north'
-        elif self.direction.y > 0 and self.direction.x == 0:
+        elif self.direction.y > 0 and abs(self.direction.x) < 0.4:
             self.direction_name = 'south'
-        elif self.direction.x > 0 and self.direction.y == 0:
+        elif self.direction.x > 0 and abs(self.direction.y) < 0.4:
             self.direction_name = 'east'
-        elif self.direction.x < 0 and self.direction.y == 0:
+        elif self.direction.x < 0 and abs(self.direction.y) < 0.4:
             self.direction_name = 'west'
         elif self.direction.y < 0 and self.direction.x > 0:
             self.direction_name = 'north-east'
@@ -60,8 +74,16 @@ class Player(pygame.sprite.Sprite):
             self.direction_name = 'south-east'
         elif self.direction.y > 0 and self.direction.x < 0:
             self.direction_name = 'south-west'
-        
-        self.image = self.images[self.direction_name]
+    
+    def animate(self, dt):
+        if self.is_moving:
+            self.frame_index += self.animation_speed * dt
+            if self.frame_index >= len(self.animations[self.direction_name]):
+                self.frame_index = 0
+            self.image = self.animations[self.direction_name][int(self.frame_index)]
+        else:
+            self.image = self.static_images[self.direction_name]
+            self.frame_index = 0
     
     def input(self):
         keys = pygame.key.get_pressed()
@@ -69,25 +91,26 @@ class Player(pygame.sprite.Sprite):
         self.direction.x = 0
         self.direction.y = 0
         
-        # Vertical
         if keys[pygame.K_z] or keys[pygame.K_UP]:
             self.direction.y = -1
         elif keys[pygame.K_s] or keys[pygame.K_DOWN]:
             self.direction.y = 1
         
-        # Horizontal
         if keys[pygame.K_q] or keys[pygame.K_LEFT]:
             self.direction.x = -1
         elif keys[pygame.K_d] or keys[pygame.K_RIGHT]:
             self.direction.x = 1
         
-        # Fix diagonale
         if self.direction.length() > 0:
             self.direction = self.direction.normalize()
+            self.is_moving = True
+        else:
+            self.is_moving = False
     
     def update(self, dt):
         self.input()
-        self.update_image()
+        self.get_direction_name()
+        self.animate(dt)
         
         self.pos += self.direction * self.speed * dt
         
@@ -120,14 +143,21 @@ class Enemy(pygame.sprite.Sprite):
         self.health = config['health']
         self.color = config['color']
         
+        # Taille selon le type
+        self.size = 128 if monster_type == 'yellow' else 64
+        
         self.load_images()
         
-        # Image par défaut
-        self.image = self.images['south']
+        # Animation
         self.direction_name = 'south'
+        self.frame_index = 0
+        self.animation_speed = self.speed / 25  # Adapté à la vitesse
+        
+        # Image par défaut (statique)
+        self.image = self.static_images['south']
         
         self.rect = self.image.get_rect(center=pos)
-        self.hitbox = self.rect.inflate(-10, -10)
+        self.hitbox = self.rect.inflate(-40, -40)
         
         self.pos = pygame.math.Vector2(pos)
         
@@ -136,32 +166,39 @@ class Enemy(pygame.sprite.Sprite):
         self.last_tp = pygame.time.get_ticks()
     
     def load_images(self):
-        self.images = {}
-        rotations_path = 'assets/graphics/snot/rotations/'
-        
         directions = [
             'north', 'south', 'east', 'west',
             'north-east', 'north-west', 'south-east', 'south-west'
         ]
         
-        # Taille selon le type
-        size = 128 if self.monster_type == 'yellow' else 64
+        # Images statiques
+        self.static_images = {}
+        rotations_path = 'assets/graphics/snot/rotations/'
         
         for direction in directions:
             image = pygame.image.load(f'{rotations_path}{direction}.png').convert_alpha()
-            image = pygame.transform.scale(image, (size, size))
-            
-            # Applique la couleur si définie
+            image = pygame.transform.scale(image, (self.size, self.size))
             if self.color:
                 image.fill(self.color, special_flags=pygame.BLEND_MULT)
-            
-            self.images[direction] = image
+            self.static_images[direction] = image
+        
+        # Animations
+        self.animations = {}
+        animations_path = 'assets/graphics/snot/animations/'
+        
+        for direction in directions:
+            self.animations[direction] = []
+            for i in range(6):
+                image = pygame.image.load(f'{animations_path}{direction}/frame_00{i}.png').convert_alpha()
+                image = pygame.transform.scale(image, (self.size, self.size))
+                if self.color:
+                    image.fill(self.color, special_flags=pygame.BLEND_MULT)
+                self.animations[direction].append(image)
     
-    def update_image(self, direction):
+    def get_direction_name(self, direction):
         if direction.length() == 0:
             return
         
-        # 8 directions
         if direction.y < 0 and abs(direction.x) < 0.4:
             self.direction_name = 'north'
         elif direction.y > 0 and abs(direction.x) < 0.4:
@@ -178,17 +215,21 @@ class Enemy(pygame.sprite.Sprite):
             self.direction_name = 'south-east'
         elif direction.y > 0 and direction.x < 0:
             self.direction_name = 'south-west'
-        
-        self.image = self.images[self.direction_name]
+    
+    def animate(self, dt):
+        self.frame_index += self.animation_speed * dt
+        if self.frame_index >= len(self.animations[self.direction_name]):
+            self.frame_index = 0
+        self.image = self.animations[self.direction_name][int(self.frame_index)]
     
     def move(self, dt):
-        # Vecteur vers le joueur
         direction = self.player.pos - self.pos
         
         if direction.length() > 0:
             direction = direction.normalize()
         
-        self.update_image(direction)
+        self.get_direction_name(direction)
+        self.animate(dt)
         
         self.pos += direction * self.speed * dt
         

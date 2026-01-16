@@ -90,6 +90,13 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         
+        # Timer pour spawn des ennemis
+        self.enemy_event = pygame.event.custom_type()
+        pygame.time.set_timer(self.enemy_event, 1000)
+        
+        self.start_new_game()
+    
+    def start_new_game(self):
         # Groupes de sprites
         self.all_sprites = CameraGroup()
         self.bullets = pygame.sprite.Group()
@@ -100,10 +107,6 @@ class Game:
             self.all_sprites,
             (WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
         )
-        
-        # Timer pour spawn des ennemis
-        self.enemy_event = pygame.event.custom_type()
-        pygame.time.set_timer(self.enemy_event, 1000)
     
     def spawn_enemy(self):
         # Spawn en cercle autour du joueur
@@ -177,6 +180,12 @@ class Game:
     def update(self, dt):
         self.all_sprites.update(dt)
         self.check_bullet_collisions()
+        
+        # Mort du joueur (collision hitbox)
+        for enemy in self.enemies:
+            if self.player.hitbox.colliderect(enemy.hitbox):
+                self.start_new_game()
+                break
     
     def draw(self):
         self.screen.fill(BLACK)
