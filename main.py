@@ -194,9 +194,8 @@ class Game:
         
         
         # Lance la première musique
-        # self.play_music() -> Déplacé au premier input utilisateur (Web Autoplay Policy)
         self.last_music_change = pygame.time.get_ticks()
-        self.has_interaction = False # Flag pour savoir si l'utilisateur a interagi
+        self.has_interaction = False
         
         # Gestion Pause
         self.paused = False
@@ -204,11 +203,11 @@ class Game:
         self.start_new_game()
     
     def play_music(self):
-        # Charge et joue la musique actuelle
+        # Charge et joue la musique actuelle EN BOUCLE
         track_name = self.playlist[self.current_track]
         pygame.mixer.music.load(f'assets/audio/{track_name}')
-        pygame.mixer.music.set_volume(0.7)  # Volume à 70%
-        pygame.mixer.music.play()
+        pygame.mixer.music.set_volume(0.6)  # Volume à 60%
+        pygame.mixer.music.play(-1)  # -1 = boucle infinie
 
     def start_new_game(self):
         # Groupes de sprites
@@ -437,18 +436,9 @@ class Game:
                     enemy.kill()
 
     def manage_music(self):
-        if self.paused or not self.has_interaction:
-            return
-            
-        # Vérification périodique (Polling) au lieu d'événements
-        # Si la musique n'est pas "busy" (ne joue pas), on passe à la suivante
-        if not pygame.mixer.music.get_busy():
-            # Cooldown pour éviter le changement rapide si erreur de lecture ou boucle trop rapide
-            now = pygame.time.get_ticks()
-            if now - self.last_music_change > 1000:
-                self.current_track = (self.current_track + 1) % len(self.playlist)
-                self.play_music()
-                self.last_music_change = now
+        # Plus besoin de gérer le changement de musique ici
+        # La musique boucle en continu, et change uniquement à la mort
+        pass
     
     def update(self, dt):
         if self.paused:
@@ -464,6 +454,9 @@ class Game:
                 if self.hearts <= 0:
                     self.state = 'game_over'
                     self.game_over_timer = pygame.time.get_ticks()
+                    # Change de musique à la mort
+                    self.current_track = (self.current_track + 1) % len(self.playlist)
+                    self.play_music()
                 else:
                     # Juste tuer l'ennemi qui a touché
                     enemy.kill()
