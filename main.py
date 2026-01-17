@@ -203,13 +203,17 @@ class Game:
         self.start_new_game()
     
     def play_music(self):
-        # Charge et joue la musique actuelle EN BOUCLE
+        # Charge et joue la musique actuelle
         track_name = self.playlist[self.current_track]
         pygame.mixer.music.load(f'assets/audio/{track_name}')
-        pygame.mixer.music.set_volume(0.6)  # Volume à 60%
+        pygame.mixer.music.set_volume(0.5)  # Volume à 50%
         pygame.mixer.music.play(-1)  # -1 = boucle infinie
 
     def start_new_game(self):
+        # Shuffle la playlist à chaque nouvelle partie
+        shuffle(self.playlist)
+        self.current_track = 0
+        
         # Groupes de sprites
         self.all_sprites = CameraGroup()
         self.bullets = pygame.sprite.Group()
