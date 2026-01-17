@@ -194,8 +194,9 @@ class Game:
         
         
         # Lance la première musique
-        self.play_music()
+        # self.play_music() -> Déplacé au premier input utilisateur (Web Autoplay Policy)
         self.last_music_change = pygame.time.get_ticks()
+        self.has_interaction = False # Flag pour savoir si l'utilisateur a interagi
         
         # Gestion Pause
         self.paused = False
@@ -355,6 +356,11 @@ class Game:
     
     def handle_events(self):
         for event in pygame.event.get():
+            # Gestion du premier input pour lancer l'audio (Web Autoplay)
+            if not self.has_interaction and (event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN):
+                self.has_interaction = True
+                self.play_music()
+                
             if event.type == pygame.QUIT:
                 self.running = False
             
@@ -431,7 +437,7 @@ class Game:
                     enemy.kill()
 
     def manage_music(self):
-        if self.paused:
+        if self.paused or not self.has_interaction:
             return
             
         # Vérification périodique (Polling) au lieu d'événements
