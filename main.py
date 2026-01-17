@@ -182,12 +182,12 @@ class Game:
         
         # Playlist Musicale
         self.playlist = [
-            'Leak To The Past Theme Song.wav',
-            'Leak to the Past Theme Song 2.wav',
-            'Leak To The Past Theme Song 3.wav',
-            'Leak To The Past Theme Song 4.wav',
-            'Leak To The Past Theme Song 5.wav',
-            'Leak To The Past Theme Song 6.wav'
+            'track_1.wav',
+            'track_2.wav',
+            'track_3.wav',
+            'track_4.wav',
+            'track_5.wav',
+            'track_6.wav'
         ]
         shuffle(self.playlist)
         self.current_track = 0
@@ -297,7 +297,6 @@ class Game:
                 # Son de recharge
                 choice(self.recharge_sounds).play()
                 
-                # IMPORTANT: On ne tire pas tout de suite, on juste rechargé
                 return
             else:
                 # Pas de recharge possible -> Clic à vide
@@ -307,9 +306,7 @@ class Game:
         
         self.player.ammo -= 1
         
-        # Son de tir (Toujours le pschit de base)
-        # Son de tir (Toujours le pschit de base)
-        # On coupe le son précédent pour permettre l'enchaînement rapide sans saturation (stacking)
+        # Son de tir
         self.shoot_channel.stop()
         self.shoot_channel.play(choice(self.shoot_sounds))
         
