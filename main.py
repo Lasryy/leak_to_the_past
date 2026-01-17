@@ -203,20 +203,20 @@ class Game:
         self.start_new_game()
     
     def play_music(self):
-        # Charge et joue la musique actuelle
+        # Arrêter la musique précédente pour éviter le chevauchement
+        pygame.mixer.music.stop()
+        # Charge et joue la musique actuelle EN BOUCLE
         track_name = self.playlist[self.current_track]
         pygame.mixer.music.load(f'assets/audio/{track_name}')
         pygame.mixer.music.set_volume(0.5)  # Volume à 50%
         pygame.mixer.music.play(-1)  # -1 = boucle infinie
 
     def start_new_game(self):
-        # Shuffle la playlist à chaque nouvelle partie
-        # S'assurer qu'on ne commence pas par la même piste qu'avant
-        last_track = self.playlist[self.current_track] if hasattr(self, 'current_track') else None
-        shuffle(self.playlist)
-        while self.playlist[0] == last_track and len(self.playlist) > 1:
-            shuffle(self.playlist)
-        self.current_track = 0
+        # Avance à la piste suivante (ordre séquentiel 1-6)
+        if hasattr(self, 'current_track'):
+            self.current_track = (self.current_track + 1) % len(self.playlist)
+        else:
+            self.current_track = 0
         
         # Groupes de sprites
         self.all_sprites = CameraGroup()
