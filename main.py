@@ -170,6 +170,7 @@ class Game:
         # Channel dédié pour le son "empty" (non-empilable)
         self.empty_channel = mixer.Channel(0)
         self.puddle_channel = mixer.Channel(1)
+        self.shoot_channel = mixer.Channel(2) # Pour éviter le spam de tir
         
         # Timer pour spawn des ennemis
         self.enemy_event = pygame.event.custom_type()
@@ -181,12 +182,12 @@ class Game:
         
         # Playlist Musicale
         self.playlist = [
-            'Leak To The Past - Theme Song.wav',
-            'Leak To The Past - Theme Song 2.wav',
-            'Leak To The Past - Theme Song 3.wav',
-            'Leak To The Past - Theme Song 4.wav',
-            'Leak To The Past - Theme Song 5.wav',
-            'Leak To The Past - Theme Song 6.wav'
+            'Leak To The Past Theme Song.wav',
+            'Leak to the Past Theme Song 2.wav',
+            'Leak To The Past Theme Song 3.wav',
+            'Leak To The Past Theme Song 4.wav',
+            'Leak To The Past Theme Song 5.wav',
+            'Leak To The Past Theme Song 6.wav'
         ]
         shuffle(self.playlist)
         self.current_track = 0
@@ -194,6 +195,10 @@ class Game:
         # Event pour fin de musique
         self.MUSIC_END = pygame.USEREVENT + 1
         pygame.mixer.music.set_endevent(self.MUSIC_END)
+        self.last_music_change = 0 # Pour éviter le loop rapide
+        
+        # Gestion Pause
+        self.paused = False
         
         # Lance la première musique
         self.play_music()
@@ -306,7 +311,10 @@ class Game:
         self.player.ammo -= 1
         
         # Son de tir (Toujours le pschit de base)
-        choice(self.shoot_sounds).play()
+        # Son de tir (Toujours le pschit de base)
+        # On coupe le son précédent pour permettre l'enchaînement rapide sans saturation (stacking)
+        self.shoot_channel.stop()
+        self.shoot_channel.play(choice(self.shoot_sounds))
         
         # + Son de sang si spécial
         if is_special_shot:
@@ -355,16 +363,29 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            elif event.type == self.enemy_event and self.state == 'game':
+            
+            # Gestion de la pause (Focus perdu)
+            elif event.type == pygame.WINDOWFOCUSLOST:
+                self.paused = True
+                pygame.mixer.music.pause()
+            elif event.type == pygame.WINDOWFOCUSGAINED:
+                self.paused = False
+                pygame.mixer.music.unpause()
+                
+            elif event.type == self.enemy_event and self.state == 'game' and not self.paused:
                 self.spawn_enemy()
+            
             elif event.type == self.MUSIC_END:
-                # Musique suivante (seulement si vraiment terminée)
-                if not pygame.mixer.music.get_busy():
+                # Musique suivante (avec cooldown et check busy)
+                now = pygame.time.get_ticks()
+                if not pygame.mixer.music.get_busy() and now - self.last_music_change > 1000:
                     self.current_track = (self.current_track + 1) % len(self.playlist)
                     self.play_music()
+                    self.last_music_change = now
+            
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Peut tirer seulement en jeu et si immobile
-                if self.state == 'game' and not self.player.is_moving:
+                # Peut tirer seulement en jeu, si immobile et pas en pause
+                if self.state == 'game' and not self.player.is_moving and not self.paused:
                     self.shoot(event.pos)
     
     def check_bullet_collisions(self):
@@ -424,6 +445,9 @@ class Game:
                     enemy.kill()
     
     def update(self, dt):
+        if self.paused:
+            return
+            
         self.all_sprites.update(dt)
         self.check_bullet_collisions()
         
