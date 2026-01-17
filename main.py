@@ -211,7 +211,11 @@ class Game:
 
     def start_new_game(self):
         # Shuffle la playlist à chaque nouvelle partie
+        # S'assurer qu'on ne commence pas par la même piste qu'avant
+        last_track = self.playlist[self.current_track] if hasattr(self, 'current_track') else None
         shuffle(self.playlist)
+        while self.playlist[0] == last_track and len(self.playlist) > 1:
+            shuffle(self.playlist)
         self.current_track = 0
         
         # Groupes de sprites
