@@ -17,7 +17,7 @@ class Player(pygame.sprite.Sprite):
         # Animation
         self.direction_name = 'south'
         self.frame_index = 0
-        self.animation_speed = 10
+        self.animation_speed = 12
         self.is_moving = False
         
         # Image par défaut (statique)
@@ -36,28 +36,38 @@ class Player(pygame.sprite.Sprite):
         self.max_ammo = MAX_AMMO
     
     def load_images(self):
-        # Images statiques (rotations)
-        self.static_images = {}
-        rotations_path = 'assets/graphics/leak/rotations/'
+        # Charger le spritesheet
+        spritesheet = pygame.image.load('assets/graphics/spritesheet/leak.png').convert_alpha()
         
-        directions = [
-            'north', 'south', 'east', 'west',
-            'north-east', 'north-west', 'south-east', 'south-west'
+        # Dimensions du spritesheet
+        sheet_width = spritesheet.get_width()
+        sheet_height = spritesheet.get_height()
+        cols = 7  # 1 static + 6 anim
+        rows = 8  # 8 directions
+        cell_width = sheet_width // cols
+        cell_height = sheet_height // rows
+        
+        # Ordre des directions dans le spritesheet (lignes)
+        directions_order = [
+            'south', 'south-west', 'west', 'north-west',
+            'north', 'north-east', 'east', 'south-east'
         ]
         
-        for direction in directions:
-            image = pygame.image.load(f'{rotations_path}{direction}.png').convert_alpha()
-            self.static_images[direction] = pygame.transform.scale(image, (TILESIZE, TILESIZE))
-        
-        # Animations
+        self.static_images = {}
         self.animations = {}
-        animations_path = 'assets/graphics/leak/animations/'
         
-        for direction in directions:
+        for row, direction in enumerate(directions_order):
+            # Colonne 0 = statique
+            static_rect = pygame.Rect(0, row * cell_height, cell_width, cell_height)
+            static_img = spritesheet.subsurface(static_rect).copy()
+            self.static_images[direction] = pygame.transform.scale(static_img, (TILESIZE, TILESIZE))
+            
+            # Colonnes 1-6 = animation
             self.animations[direction] = []
-            for i in range(6):
-                image = pygame.image.load(f'{animations_path}{direction}/frame_00{i}.png').convert_alpha()
-                self.animations[direction].append(pygame.transform.scale(image, (TILESIZE, TILESIZE)))
+            for col in range(1, cols):
+                frame_rect = pygame.Rect(col * cell_width, row * cell_height, cell_width, cell_height)
+                frame_img = spritesheet.subsurface(frame_rect).copy()
+                self.animations[direction].append(pygame.transform.scale(frame_img, (TILESIZE, TILESIZE)))
     
     def get_direction_name(self):
         if self.direction.x == 0 and self.direction.y == 0:
@@ -190,34 +200,44 @@ class Enemy(pygame.sprite.Sprite):
         self.last_shoot_time = pygame.time.get_ticks()
     
     def load_images(self):
-        directions = [
-            'north', 'south', 'east', 'west',
-            'north-east', 'north-west', 'south-east', 'south-west'
+        # Charger le spritesheet
+        spritesheet = pygame.image.load('assets/graphics/spritesheet/snot.png').convert_alpha()
+        
+        # Dimensions du spritesheet
+        sheet_width = spritesheet.get_width()
+        sheet_height = spritesheet.get_height()
+        cols = 7  # 1 static + 6 anim
+        rows = 8  # 8 directions
+        cell_width = sheet_width // cols
+        cell_height = sheet_height // rows
+        
+        # Ordre des directions dans le spritesheet (lignes)
+        directions_order = [
+            'south', 'south-west', 'west', 'north-west',
+            'north', 'north-east', 'east', 'south-east'
         ]
         
-        # Images statiques
         self.static_images = {}
-        rotations_path = 'assets/graphics/snot/rotations/'
-        
-        for direction in directions:
-            image = pygame.image.load(f'{rotations_path}{direction}.png').convert_alpha()
-            image = pygame.transform.scale(image, (self.size, self.size))
-            if self.color:
-                image.fill(self.color, special_flags=pygame.BLEND_MULT)
-            self.static_images[direction] = image
-        
-        # Animations
         self.animations = {}
-        animations_path = 'assets/graphics/snot/animations/'
         
-        for direction in directions:
+        for row, direction in enumerate(directions_order):
+            # Colonne 0 = statique
+            static_rect = pygame.Rect(0, row * cell_height, cell_width, cell_height)
+            static_img = spritesheet.subsurface(static_rect).copy()
+            static_img = pygame.transform.scale(static_img, (self.size, self.size))
+            if self.color:
+                static_img.fill(self.color, special_flags=pygame.BLEND_MULT)
+            self.static_images[direction] = static_img
+            
+            # Colonnes 1-6 = animation
             self.animations[direction] = []
-            for i in range(6):
-                image = pygame.image.load(f'{animations_path}{direction}/frame_00{i}.png').convert_alpha()
-                image = pygame.transform.scale(image, (self.size, self.size))
+            for col in range(1, cols):
+                frame_rect = pygame.Rect(col * cell_width, row * cell_height, cell_width, cell_height)
+                frame_img = spritesheet.subsurface(frame_rect).copy()
+                frame_img = pygame.transform.scale(frame_img, (self.size, self.size))
                 if self.color:
-                    image.fill(self.color, special_flags=pygame.BLEND_MULT)
-                self.animations[direction].append(image)
+                    frame_img.fill(self.color, special_flags=pygame.BLEND_MULT)
+                self.animations[direction].append(frame_img)
     
     def get_direction_name(self, direction):
         if direction.length() == 0:
@@ -296,6 +316,16 @@ class Enemy(pygame.sprite.Sprite):
             else:
                 self.is_hit = False
         
+        # Camouflage du violet (quasi-invisible quand proche)
+        if self.monster_type == 'purple':
+            dist = (self.player.pos - self.pos).length()
+            if dist < 300:
+                # Proche = très faible opacité (presque invisible sur sol sombre)
+                self.image.set_alpha(30)
+            else:
+                # Loin = visible en violet
+                self.image.set_alpha(255)
+        
         self.pos += direction * self.speed * dt
         
         self.rect.centerx = round(self.pos.x)
@@ -344,6 +374,10 @@ class Enemy(pygame.sprite.Sprite):
         
         if hasattr(self.game, 'enemy_bullets'):
             EnemyBullet(enemy_pos, direction, [self.game.all_sprites, self.game.enemy_bullets])
+            # Son de tir
+            if hasattr(self.game, 'blue_shoot_sounds'):
+                from random import choice
+                choice(self.game.blue_shoot_sounds).play()
 
 
 class Bullet(pygame.sprite.Sprite):

@@ -2,9 +2,10 @@
 Leak To The Past - Module Principal du Jeu
 """
 
+import asyncio
 import pygame
 from pygame import mixer
-from random import randint, random, choices
+from random import randint, random, choices, choice
 from math import cos, sin, radians
 from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, WHITE, TILESIZE, MAX_AMMO, DROP_CHANCE
 from sprites import Player, Enemy, Bullet, Particle, Puddle, Item
@@ -102,6 +103,7 @@ class Game:
     def __init__(self):
         pygame.init()
         mixer.init()
+        mixer.set_num_channels(32) 
         
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption(TITLE)
@@ -126,10 +128,38 @@ class Game:
         heart_img = pygame.image.load('assets/graphics/HUD/heart.png').convert_alpha()
         self.heart_icon = pygame.transform.scale(heart_img, (24, 24))
         
-        # Timer pour spawn des ennemis
-        self.enemy_event = pygame.event.custom_type()
-        pygame.time.set_timer(self.enemy_event, 1000)
+        # Charge les sons (3 variations chacun)
+        audio_path = 'assets/audio/'
+        self.shoot_sounds = [
+            mixer.Sound(f'{audio_path}nasal_spray.wav'),
+            mixer.Sound(f'{audio_path}nasal_spray 2.wav'),
+            mixer.Sound(f'{audio_path}nasal_spray 3.wav')
+        ]
+        self.empty_sounds = [
+            mixer.Sound(f'{audio_path}nasal_spray empty.wav'),
+            mixer.Sound(f'{audio_path}nasal_spray empty 2.wav'),
+            mixer.Sound(f'{audio_path}nasal_spray empty 3.wav')
+        ]
+        self.blue_shoot_sounds = [
+            mixer.Sound(f'{audio_path}blue shoot.wav'),
+            mixer.Sound(f'{audio_path}blue shoot 2.wav'),
+            mixer.Sound(f'{audio_path}blue shoot 3.wav')
+        ]
+        self.recharge_sounds = [
+            mixer.Sound(f'{audio_path}recharge.wav'),
+            mixer.Sound(f'{audio_path}recharge 2.wav'),
+            mixer.Sound(f'{audio_path}recharge 3.wav')
+        ]
+        self.spawn_sounds = [
+            mixer.Sound(f'{audio_path}snot spawn.wav'),
+            mixer.Sound(f'{audio_path}snot spawn 2.wav'),
+            mixer.Sound(f'{audio_path}snot spawn 3.wav')
+        ]
         
+        # Channel dédié pour le son "empty" (non-empilable)
+        self.empty_channel = mixer.Channel(0)
+        
+        # Timer pour spawn des ennemis
         self.enemy_event = pygame.event.custom_type()
         pygame.time.set_timer(self.enemy_event, 1000)
         
@@ -155,10 +185,9 @@ class Game:
         )
         
         # Score et vie
-        # Score et vie
         self.score = 0
         self.hearts = 1  # 1 cœur au départ, max 3
-        self.sprays = 99  # Nombre de sprays (infini pour l'instant)
+        self.sprays = 99 
         self.game_start_time = pygame.time.get_ticks()
     
     def spawn_enemy(self):
@@ -177,7 +206,7 @@ class Game:
             {'type': 'normal', 'weight': 60, 'min_time': 0},
             {'type': 'green', 'weight': 15, 'min_time': 30},
             {'type': 'yellow', 'weight': 15, 'min_time': 60},
-            {'type': 'blue', 'weight': 7, 'min_time': 90},
+            {'type': 'blue', 'weight': 5, 'min_time': 90},
             {'type': 'red', 'weight': 2, 'min_time': 90},
             {'type': 'purple', 'weight': 1, 'min_time': 120}
         ]
@@ -195,13 +224,21 @@ class Game:
             monster_type = choices(types, weights=weights, k=1)[0]
         
         Enemy(self, [self.all_sprites, self.enemies], (x, y), self.player, monster_type)
+        
+        # Son de spawn uniquement pour le bleu
+        if monster_type == 'blue':
+            choice(self.spawn_sounds).play()
     
     def shoot(self, mouse_pos):
         # Vérifie les munitions
         if self.player.ammo <= 0:
+            # Ne joue le son que si le channel est libre
+            if not self.empty_channel.get_busy():
+                self.empty_channel.play(choice(self.empty_sounds))
             return
-            
+        
         self.player.ammo -= 1
+        choice(self.shoot_sounds).play()
         
         # Position du joueur à l'écran (toujours au centre)
         player_screen_pos = pygame.math.Vector2(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
@@ -245,11 +282,11 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            elif event.type == self.enemy_event:
+            elif event.type == self.enemy_event and self.state == 'game':
                 self.spawn_enemy()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Peut tirer seulement si immobile
-                if not self.player.is_moving:
+                # Peut tirer seulement en jeu et si immobile
+                if self.state == 'game' and not self.player.is_moving:
                     self.shoot(event.pos)
     
     def check_bullet_collisions(self):
@@ -341,6 +378,7 @@ class Game:
             if self.player.hitbox.colliderect(item.hitbox):
                 item.kill()
                 self.player.ammo = MAX_AMMO
+                choice(self.recharge_sounds).play()
 
     def update_menu(self):
         keys = pygame.key.get_pressed()
@@ -349,31 +387,51 @@ class Game:
             self.state = 'game'
             
     def update_game_over(self):
-        if pygame.time.get_ticks() - self.game_over_timer > 3000:
-            self.state = 'menu'
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_SPACE]:
+            self.start_new_game()
+            self.state = 'game'
 
     def draw_menu(self):
-        self.screen.fill(BLACK)
-        title_surf = self.font.render(TITLE, True, (0, 255, 255)) # Cyan title
-        text_surf = self.font.render("PRESS SPACE TO START", True, WHITE)
-        
-        title_rect = title_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 50))
-        text_rect = text_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 50))
-        
-        self.screen.blit(title_surf, title_rect)
-        self.screen.blit(text_surf, text_rect)
+        # Charger et afficher l'image de titre
+        try:
+            title_screen = pygame.image.load('assets/graphics/HUD/Title Screen.png').convert()
+            title_screen = pygame.transform.scale(title_screen, (WINDOW_WIDTH, WINDOW_HEIGHT))
+            self.screen.blit(title_screen, (0, 0))
+        except:
+            # Fallback si image corrompue
+            self.screen.fill(BLACK)
+            title_surf = self.font.render(TITLE, True, (0, 255, 255))
+            text_surf = self.font.render("PRESS SPACE TO START", True, WHITE)
+            title_rect = title_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 50))
+            text_rect = text_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 50))
+            self.screen.blit(title_surf, title_rect)
+            self.screen.blit(text_surf, text_rect)
         pygame.display.flip()
 
     def draw_game_over(self):
-        self.screen.fill(BLACK)
-        title_surf = self.font.render("GAME OVER", True, (255, 0, 0))
-        score_surf = self.font.render(f"Score: {self.score}", True, WHITE)
+        # Charger et afficher l'image de game over
+        try:
+            game_over_screen = pygame.image.load('assets/graphics/HUD/game over.png').convert()
+            game_over_screen = pygame.transform.scale(game_over_screen, (WINDOW_WIDTH, WINDOW_HEIGHT))
+            self.screen.blit(game_over_screen, (0, 0))
+        except:
+            # Fallback si image non disponible
+            self.screen.fill(BLACK)
+            title_surf = self.font.render("GAME OVER", True, (255, 0, 0))
+            score_surf = self.font.render(f"Score: {self.score}", True, WHITE)
+            title_rect = title_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 50))
+            score_rect = score_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 50))
+            self.screen.blit(title_surf, title_rect)
+            self.screen.blit(score_surf, score_rect)
         
-        title_rect = title_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 - 50))
-        score_rect = score_surf.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2 + 50))
+        # Afficher le score en haut à droite
+        score_text = f'Score: {self.score}'
+        score_shadow = self.hotbar_font.render(score_text, True, (0, 0, 0))
+        score_surf = self.hotbar_font.render(score_text, True, WHITE)
+        self.screen.blit(score_shadow, (WINDOW_WIDTH - 151, 21))
+        self.screen.blit(score_surf, (WINDOW_WIDTH - 150, 20))
         
-        self.screen.blit(title_surf, title_rect)
-        self.screen.blit(score_surf, score_rect)
         pygame.display.flip()
     
     def draw_ui(self):
@@ -457,8 +515,11 @@ class Game:
         self.draw_ui()
         pygame.display.flip()
     
-    def run(self):
-        while self.running:
+    async def run(self):
+        while True:
+            if not self.running:
+                break
+                
             dt = self.clock.tick(FPS) / 1000
             
             self.handle_events()
@@ -472,10 +533,16 @@ class Game:
             elif self.state == 'game_over':
                 self.update_game_over()
                 self.draw_game_over()
+            
+            await asyncio.sleep(0)  # Essentiel pour Pygbag
         
         pygame.quit()
 
 
-if __name__ == "__main__":
+async def main():
     game = Game()
-    game.run()
+    await game.run()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
