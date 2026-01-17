@@ -192,16 +192,13 @@ class Game:
         shuffle(self.playlist)
         self.current_track = 0
         
-        # Event pour fin de musique
-        self.MUSIC_END = pygame.USEREVENT + 1
-        pygame.mixer.music.set_endevent(self.MUSIC_END)
-        self.last_music_change = 0 # Pour éviter le loop rapide
-        
-        # Gestion Pause
-        self.paused = False
         
         # Lance la première musique
         self.play_music()
+        self.last_music_change = pygame.time.get_ticks()
+        
+        # Gestion Pause
+        self.paused = False
         
         self.start_new_game()
     
@@ -375,14 +372,6 @@ class Game:
             elif event.type == self.enemy_event and self.state == 'game' and not self.paused:
                 self.spawn_enemy()
             
-            elif event.type == self.MUSIC_END:
-                # Musique suivante (avec cooldown et check busy)
-                now = pygame.time.get_ticks()
-                if not pygame.mixer.music.get_busy() and now - self.last_music_change > 1000:
-                    self.current_track = (self.current_track + 1) % len(self.playlist)
-                    self.play_music()
-                    self.last_music_change = now
-            
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # Peut tirer seulement en jeu, si immobile et pas en pause
                 if self.state == 'game' and not self.player.is_moving and not self.paused:
@@ -443,6 +432,20 @@ class Game:
                             Item(enemy.pos, [self.all_sprites, self.items])
                     
                     enemy.kill()
+
+    def manage_music(self):
+        if self.paused:
+            return
+            
+        # Vérification périodique (Polling) au lieu d'événements
+        # Si la musique n'est pas "busy" (ne joue pas), on passe à la suivante
+        if not pygame.mixer.music.get_busy():
+            # Cooldown pour éviter le changement rapide si erreur de lecture ou boucle trop rapide
+            now = pygame.time.get_ticks()
+            if now - self.last_music_change > 1000:
+                self.current_track = (self.current_track + 1) % len(self.playlist)
+                self.play_music()
+                self.last_music_change = now
     
     def update(self, dt):
         if self.paused:
@@ -639,6 +642,7 @@ class Game:
             dt = self.clock.tick(FPS) / 1000
             
             self.handle_events()
+            self.manage_music()
             
             if self.state == 'menu':
                 self.update_menu()
