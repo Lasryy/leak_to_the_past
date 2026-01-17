@@ -5,7 +5,7 @@ Leak To The Past - Module Principal du Jeu
 import asyncio
 import pygame
 from pygame import mixer
-from random import randint, random, choices, choice
+from random import randint, random, choices, choice, shuffle
 from math import cos, sin, radians
 from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, WHITE, TILESIZE, MAX_AMMO, DROP_CHANCE
 from sprites import Player, Enemy, Bullet, Particle, Puddle, Item
@@ -155,9 +155,21 @@ class Game:
             mixer.Sound(f'{audio_path}snot spawn 2.wav'),
             mixer.Sound(f'{audio_path}snot spawn 3.wav')
         ]
+        self.blood_shoot_sounds = [
+            mixer.Sound(f'{audio_path}blood_shoot.wav'),
+            mixer.Sound(f'{audio_path}blood_shoot 2.wav'),
+            mixer.Sound(f'{audio_path}blood_shoot 3.wav'),
+            mixer.Sound(f'{audio_path}blood_shoot 4.wav')
+        ]
+        self.puddle_sounds = [
+            mixer.Sound(f'{audio_path}flaque.wav'),
+            mixer.Sound(f'{audio_path}flaque 2.wav'),
+            mixer.Sound(f'{audio_path}flaque 3.wav')
+        ]
         
         # Channel dédié pour le son "empty" (non-empilable)
         self.empty_channel = mixer.Channel(0)
+        self.puddle_channel = mixer.Channel(1)
         
         # Timer pour spawn des ennemis
         self.enemy_event = pygame.event.custom_type()
@@ -167,8 +179,34 @@ class Game:
         self.state = 'menu' # menu, game, game_over
         self.game_over_timer = 0
         
+        # Playlist Musicale
+        self.playlist = [
+            'Leak To The Past - Theme Song.wav',
+            'Leak To The Past - Theme Song 2.wav',
+            'Leak To The Past - Theme Song 3.wav',
+            'Leak To The Past - Theme Song 4.wav',
+            'Leak To The Past - Theme Song 5.wav',
+            'Leak To The Past - Theme Song 6.wav'
+        ]
+        shuffle(self.playlist)
+        self.current_track = 0
+        
+        # Event pour fin de musique
+        self.MUSIC_END = pygame.USEREVENT + 1
+        pygame.mixer.music.set_endevent(self.MUSIC_END)
+        
+        # Lance la première musique
+        self.play_music()
+        
         self.start_new_game()
     
+    def play_music(self):
+        # Charge et joue la musique actuelle
+        track_name = self.playlist[self.current_track]
+        pygame.mixer.music.load(f'assets/audio/{track_name}')
+        pygame.mixer.music.set_volume(0.7)  # Volume à 70%
+        pygame.mixer.music.play()
+
     def start_new_game(self):
         # Groupes de sprites
         self.all_sprites = CameraGroup()
@@ -188,6 +226,7 @@ class Game:
         self.score = 0
         self.hearts = 1  # 1 cœur au départ, max 3
         self.sprays = 99 
+        
         self.game_start_time = pygame.time.get_ticks()
     
     def spawn_enemy(self):
@@ -230,15 +269,48 @@ class Game:
             choice(self.spawn_sounds).play()
     
     def shoot(self, mouse_pos):
+
+        is_special_shot = False
+        if self.player.next_shot_special:
+            is_special_shot = True
+            self.player.next_shot_special = False
+        
         # Vérifie les munitions
         if self.player.ammo <= 0:
-            # Ne joue le son que si le channel est libre
-            if not self.empty_channel.get_busy():
-                self.empty_channel.play(choice(self.empty_sounds))
-            return
+            # BLOOD AMMO MECHANIC
+            # Recharge au prix de la vie si : HP > 1 ET Pas de spray au sol
+            
+            has_spray_on_ground = False
+            for item in self.items:
+                if item.type == 'nasal_spray':
+                    has_spray_on_ground = True
+                    break
+            
+            if self.hearts > 1 and not has_spray_on_ground:
+                # Sacrifice 1 HP
+                self.hearts -= 1
+                self.player.ammo = MAX_AMMO
+                self.player.next_shot_special = True
+                
+                # Son de recharge
+                choice(self.recharge_sounds).play()
+                
+                # IMPORTANT: On ne tire pas tout de suite, on juste rechargé
+                return
+            else:
+                # Pas de recharge possible -> Clic à vide
+                if not self.empty_channel.get_busy():
+                    self.empty_channel.play(choice(self.empty_sounds))
+                return
         
         self.player.ammo -= 1
+        
+        # Son de tir (Toujours le pschit de base)
         choice(self.shoot_sounds).play()
+        
+        # + Son de sang si spécial
+        if is_special_shot:
+            choice(self.blood_shoot_sounds).play()
         
         # Position du joueur à l'écran (toujours au centre)
         player_screen_pos = pygame.math.Vector2(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
@@ -275,7 +347,8 @@ class Game:
         Bullet(
             self.player.rect.center,
             direction,
-            [self.all_sprites, self.bullets]
+            [self.all_sprites, self.bullets],
+            is_special=is_special_shot
         )
     
     def handle_events(self):
@@ -284,6 +357,11 @@ class Game:
                 self.running = False
             elif event.type == self.enemy_event and self.state == 'game':
                 self.spawn_enemy()
+            elif event.type == self.MUSIC_END:
+                # Musique suivante (seulement si vraiment terminée)
+                if not pygame.mixer.music.get_busy():
+                    self.current_track = (self.current_track + 1) % len(self.playlist)
+                    self.play_music()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # Peut tirer seulement en jeu et si immobile
                 if self.state == 'game' and not self.player.is_moving:
@@ -294,8 +372,16 @@ class Game:
         hits = pygame.sprite.groupcollide(self.bullets, self.enemies, True, False)
         
         for bullet, enemies_hit in hits.items():
+            # Capture si c'est un tir spécial AVANT tout traitement
+            is_special_kill = getattr(bullet, 'is_special', False)
+            
             for enemy in enemies_hit:
-                enemy.health -= 1
+                # Gestion One-Shot pour la balle spéciale
+                if is_special_kill:
+                    enemy.health = 0
+                else:
+                    enemy.health -= 1
+                
                 enemy.is_hit = True
                 enemy.last_hit_time = pygame.time.get_ticks()
                 
@@ -311,8 +397,8 @@ class Game:
                     if enemy.monster_type == 'red' and self.hearts < 3:
                         self.hearts += 1
                     
-                    # Le jaune spawn 2 verts en mourant
-                    if enemy.monster_type == 'yellow':
+                    # Le jaune spawn 2 verts en mourant (SAUF si tué par blood bullet)
+                    if enemy.monster_type == 'yellow' and not is_special_kill:
                         for _ in range(2):
                             offset = pygame.math.Vector2(randint(-50, 50), randint(-50, 50))
                             Enemy(self, [self.all_sprites, self.enemies], 
@@ -362,8 +448,14 @@ class Game:
         
         if is_slowed:
             self.player.speed = self.player.base_speed / 2
+            # Joue le son de flaque (non-empilable)
+            if not self.puddle_channel.get_busy():
+                self.puddle_channel.play(choice(self.puddle_sounds))
         else:
             self.player.speed = self.player.base_speed
+            # Arrête le son de flaque si on sort
+            if self.puddle_channel.get_busy():
+                self.puddle_channel.stop()
         
         # Collision balles ennemies / Joueur
         if pygame.sprite.spritecollide(self.player, self.enemy_bullets, True, pygame.sprite.collide_mask):
@@ -395,7 +487,7 @@ class Game:
     def draw_menu(self):
         # Charger et afficher l'image de titre
         try:
-            title_screen = pygame.image.load('assets/graphics/HUD/Title Screen.png').convert()
+            title_screen = pygame.image.load('assets/graphics/HUD/title_screen.png').convert()
             title_screen = pygame.transform.scale(title_screen, (WINDOW_WIDTH, WINDOW_HEIGHT))
             self.screen.blit(title_screen, (0, 0))
         except:
@@ -412,7 +504,7 @@ class Game:
     def draw_game_over(self):
         # Charger et afficher l'image de game over
         try:
-            game_over_screen = pygame.image.load('assets/graphics/HUD/game over.png').convert()
+            game_over_screen = pygame.image.load('assets/graphics/HUD/game_over_screen.png').convert()
             game_over_screen = pygame.transform.scale(game_over_screen, (WINDOW_WIDTH, WINDOW_HEIGHT))
             self.screen.blit(game_over_screen, (0, 0))
         except:

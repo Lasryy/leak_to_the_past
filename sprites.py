@@ -3,7 +3,7 @@
 import pygame
 from random import uniform, randint
 from math import sin
-from settings import TILESIZE, CYAN, MAX_AMMO, ITEM_DESPAWN_TIME
+from settings import TILESIZE, CYAN, RED, MAX_AMMO, ITEM_DESPAWN_TIME, WINDOW_WIDTH, WINDOW_HEIGHT
 
 
 class Player(pygame.sprite.Sprite):
@@ -34,6 +34,7 @@ class Player(pygame.sprite.Sprite):
         # Munitions
         self.ammo = MAX_AMMO
         self.max_ammo = MAX_AMMO
+        self.next_shot_special = False
     
     def load_images(self):
         # Charger le spritesheet
@@ -372,6 +373,14 @@ class Enemy(pygame.sprite.Sprite):
         enemy_pos = self.rect.center
         direction = pygame.math.Vector2(player_pos) - pygame.math.Vector2(enemy_pos)
         
+        # Vérifie si le joueur est visible à l'écran
+        dx = abs(player_pos[0] - enemy_pos[0])
+        dy = abs(player_pos[1] - enemy_pos[1])
+        
+        # Si hors écran, ne tire pas
+        if dx > WINDOW_WIDTH // 2 + 100 or dy > WINDOW_HEIGHT // 2 + 100:
+            return
+        
         if hasattr(self.game, 'enemy_bullets'):
             EnemyBullet(enemy_pos, direction, [self.game.all_sprites, self.game.enemy_bullets])
             # Son de tir
@@ -382,12 +391,17 @@ class Enemy(pygame.sprite.Sprite):
 
 class Bullet(pygame.sprite.Sprite):
     
-    def __init__(self, pos, direction, groups):
+    def __init__(self, pos, direction, groups, is_special=False):
         super().__init__(groups)
         
-        # Projectile: Barre cyan orientée
+        self.is_special = is_special
+        
+        # Projectile: Barre cyan orientée (ou ROUGE si spécial)
         self.image = pygame.Surface((24, 6), pygame.SRCALPHA)
-        self.image.fill(CYAN)
+        if is_special:
+            self.image.fill(RED)
+        else:
+            self.image.fill(CYAN)
         
         if direction.length() > 0:
             self.direction = direction.normalize()
@@ -499,6 +513,7 @@ class Item(pygame.sprite.Sprite):
         # Visuel : Fiole spray (Image réelle)
         self.image = pygame.image.load('assets/graphics/HUD/nasal_spray.png').convert_alpha()
         self.image = pygame.transform.scale(self.image, (40, 40))
+        self.type = 'nasal_spray'
         self.image = pygame.transform.rotate(self.image, -45)
         
         self.rect = self.image.get_rect(center=pos)
