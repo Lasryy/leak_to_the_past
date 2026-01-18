@@ -137,7 +137,7 @@ class Player(pygame.sprite.Sprite):
 
 class Enemy(pygame.sprite.Sprite):
     
-    # Dictionnaire pour stocker les images chargées (Optimisation Web)
+    # Cache des images par type
     _assets_cache = {} 
     
     # Config des types de monstres
@@ -289,16 +289,16 @@ class Enemy(pygame.sprite.Sprite):
         if to_player.length_squared() > 0:
             to_player = to_player.normalize()
             
-        # Vecteur de séparation (Anti-stacking)
+        # Séparation (Anti-stacking)
+        scan_rect = self.rect.inflate(10, 10) 
+        neighbors = [e for e in self.groups_ref[1] if e is not self and scan_rect.colliderect(e.rect)]
+        
         separation = pygame.math.Vector2(0, 0)
-        for other in self.groups_ref[1]: # self.enemies group
-            if other is not self:
-                dist_sq = (self.pos - other.pos).length_squared()
-                # Rayon de séparation (taille du sprite)
-                if 0 < dist_sq < self.size**2:
-                    dist = dist_sq ** 0.5
-                    push = self.pos - other.pos
-                    separation += push.normalize() / dist
+        # Force de répulsion sur les voisins proches
+        for other in neighbors:
+            push = self.pos - other.pos
+            if 0 < push.length_squared() < self.size**2: # Protection div/0
+                separation += push.normalize() / push.length() # Force inverse à la distance
         
         # On combine : Direction joueur + Séparation * force
         direction = to_player + separation * 1.5
@@ -463,12 +463,17 @@ class Bullet(pygame.sprite.Sprite):
 
 class Particle(pygame.sprite.Sprite):
     
+    # Surface unique pour économiser la mémoire
+    master_surf = pygame.Surface((4, 4))
+    master_surf.fill((255, 255, 255)) 
+
     def __init__(self, pos, color, groups):
         super().__init__(groups)
         
-        # Petit carré coloré
-        self.image = pygame.Surface((4, 4))
-        self.image.fill(color if color else (255, 255, 255))
+        self.image = self.master_surf.copy()
+        
+        if color:
+            self.image.fill(color)
         
         self.rect = self.image.get_rect(center=pos)
         self.pos = pygame.math.Vector2(pos)
@@ -543,7 +548,7 @@ class Item(pygame.sprite.Sprite):
     def __init__(self, pos, groups):
         super().__init__(groups)
         
-        # Visuel : Fiole spray (Image réelle)
+        # Visuel : Fiole spray 
         self.image = pygame.image.load('assets/graphics/HUD/nasal_spray.png').convert_alpha()
         self.image = pygame.transform.scale(self.image, (40, 40))
         self.type = 'nasal_spray'

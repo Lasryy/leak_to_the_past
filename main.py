@@ -128,8 +128,7 @@ class Game:
         heart_img = pygame.image.load('assets/graphics/HUD/heart.png').convert_alpha()
         self.heart_icon = pygame.transform.scale(heart_img, (24, 24))
         
-        # UI Caching (Optimisation Web)
-        # On pré-calcule le fond du hotbar pour ne pas le redessiner à chaque frame
+        # Optimisation rendu UI
         self.ui_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
         self.ui_surface_dirty = True # Flag pour redessiner si besoin
         
@@ -184,6 +183,15 @@ class Game:
         # Etats du jeu
         self.state = 'menu' # menu, game, game_over
         self.game_over_timer = 0
+        
+        # Cache Textes
+        self.last_score = -1
+        self.score_surf = None
+        self.score_shadow = None
+        # Item name est statique
+        item_text = "Nasal Spray"
+        self.item_name_shadow = self.hotbar_font.render(item_text, True, (0, 0, 0))
+        self.item_name_surf = self.hotbar_font.render(item_text, True, (255, 255, 255))
         
         # Playlist Musicale
         self.playlist = [
@@ -633,21 +641,21 @@ class Game:
             heart_rect = self.heart_icon.get_rect(center=(hotbar_x + 15 + i * 28, heart_y))
             self.screen.blit(self.heart_icon, heart_rect)
         
-        # === NOM DE L'ITEM AU CENTRE AU-DESSUS DU HOTBAR ===
-        item_name = "Nasal Spray"
-        name_shadow = self.hotbar_font.render(item_name, True, (0, 0, 0))
-        name_surf = self.hotbar_font.render(item_name, True, (255, 255, 255))
-        name_x = WINDOW_WIDTH // 2 - name_surf.get_width() // 2
+        # === NOM DE L'ITEM ===
+        name_x = WINDOW_WIDTH // 2 - self.item_name_surf.get_width() // 2
         name_y = hotbar_y - 25
-        self.screen.blit(name_shadow, (name_x + 1, name_y + 1))
-        self.screen.blit(name_surf, (name_x, name_y))
+        self.screen.blit(self.item_name_shadow, (name_x + 1, name_y + 1))
+        self.screen.blit(self.item_name_surf, (name_x, name_y))
         
-        # === SCORE EN HAUT A DROITE ===
-        score_text = f'Score: {self.score}'
-        shadow = self.hotbar_font.render(score_text, True, (0, 0, 0))
-        self.screen.blit(shadow, (WINDOW_WIDTH - 151, 21))
-        score_surf = self.hotbar_font.render(score_text, True, (255, 255, 255))
-        self.screen.blit(score_surf, (WINDOW_WIDTH - 150, 20))
+        # === SCORE ===
+        if self.score != self.last_score or self.score_surf is None:
+            score_text = f'Score: {self.score}'
+            self.score_shadow = self.hotbar_font.render(score_text, True, (0, 0, 0))
+            self.score_surf = self.hotbar_font.render(score_text, True, (255, 255, 255))
+            self.last_score = self.score
+            
+        self.screen.blit(self.score_shadow, (WINDOW_WIDTH - 151, 21))
+        self.screen.blit(self.score_surf, (WINDOW_WIDTH - 150, 20))
     
     def draw(self):
         self.screen.fill(BLACK)
