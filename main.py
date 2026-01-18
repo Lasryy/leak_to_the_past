@@ -128,6 +128,11 @@ class Game:
         heart_img = pygame.image.load('assets/graphics/HUD/heart.png').convert_alpha()
         self.heart_icon = pygame.transform.scale(heart_img, (24, 24))
         
+        # UI Caching (Optimisation Web)
+        # On pré-calcule le fond du hotbar pour ne pas le redessiner à chaque frame
+        self.ui_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
+        self.ui_surface_dirty = True # Flag pour redessiner si besoin
+        
         # Charge les sons (3 variations chacun)
         audio_path = 'assets/audio/'
         self.shoot_sounds = [
@@ -212,10 +217,8 @@ class Game:
         pygame.mixer.music.play(-1)  # -1 = boucle infinie
 
     def start_new_game(self):
-        # Avance à la piste suivante (ordre séquentiel 1-6)
-        if hasattr(self, 'current_track'):
-            self.current_track = (self.current_track + 1) % len(self.playlist)
-        else:
+        # On garde la même musique (elle a changé à la mort précédente)
+        if not hasattr(self, 'current_track'):
             self.current_track = 0
         
         # Groupes de sprites
@@ -330,7 +333,7 @@ class Game:
         direction = mouse_vec - player_screen_pos
         
         # Fait regarder le joueur vers la souris
-        if direction.length() > 0:
+        if direction.length_squared() > 0:
             norm_dir = direction.normalize()
             
             # Détermine la direction (8 directions)
@@ -567,48 +570,62 @@ class Game:
         hotbar_x = WINDOW_WIDTH // 2 - hotbar_width // 2
         hotbar_y = WINDOW_HEIGHT - hotbar_height - 10
         
-        # Fond du hotbar
-        pygame.draw.rect(self.screen, (50, 50, 50), (hotbar_x, hotbar_y, hotbar_width, hotbar_height))
-        pygame.draw.rect(self.screen, (30, 30, 30), (hotbar_x, hotbar_y, hotbar_width, hotbar_height), 2)
-        
-        # Dessine les 9 slots
-        for i in range(num_slots):
-            sx = hotbar_x + slot_margin + i * (slot_size + slot_margin)
-            sy = hotbar_y + slot_margin
+        # 1. Rendu statique (si nécessaire)
+        if self.ui_surface_dirty:
+            self.ui_surface.fill((0,0,0,0)) # Transparent
             
-            # Fond du slot
-            pygame.draw.rect(self.screen, (80, 80, 80), (sx, sy, slot_size, slot_size))
+            # Fond du hotbar
+            pygame.draw.rect(self.ui_surface, (50, 50, 50), (hotbar_x, hotbar_y, hotbar_width, hotbar_height))
+            pygame.draw.rect(self.ui_surface, (30, 30, 30), (hotbar_x, hotbar_y, hotbar_width, hotbar_height), 2)
             
-            # Bordure (blanche si sélectionné, grise sinon)
-            if i == 0:
-                pygame.draw.rect(self.screen, (255, 255, 255), (sx, sy, slot_size, slot_size), 2)
-                # Spray nasal dans le premier slot
-                spray_rect = self.spray_icon.get_rect(center=(sx + slot_size // 2, sy + slot_size // 2))
-                self.screen.blit(self.spray_icon, spray_rect)
+            # Dessine les 9 slots (fonds uniquement)
+            for i in range(num_slots):
+                sx = hotbar_x + slot_margin + i * (slot_size + slot_margin)
+                sy = hotbar_y + slot_margin
                 
-                # Barre de durabilité dans le slot (si utilisé)
-                if self.player.ammo < self.player.max_ammo:
-                    ratio = self.player.ammo / self.player.max_ammo
-                    bar_w = slot_size - 6
-                    bar_h = 4
-                    bar_x = sx + 3
-                    bar_y = sy + slot_size - 8
-                    
-                    # Couleur
-                    if ratio > 0.5:
-                        color = (0, 255, 0) # Vert
-                    elif ratio > 0.2:
-                        color = (255, 165, 0) # Orange
-                    else:
-                        color = (255, 0, 0) # Rouge
-                    
-                    # Fond noir
-                    pygame.draw.rect(self.screen, (0, 0, 0), (bar_x, bar_y, bar_w, bar_h))
-                    # Barre
-                    pygame.draw.rect(self.screen, color, (bar_x, bar_y, bar_w * ratio, bar_h))
-                    
+                # Fond du slot
+                pygame.draw.rect(self.ui_surface, (80, 80, 80), (sx, sy, slot_size, slot_size))
+                
+                # Bordure slot inactif
+                if i != 0:
+                    pygame.draw.rect(self.ui_surface, (40, 40, 40), (sx, sy, slot_size, slot_size), 1)
+            
+            self.ui_surface_dirty = False
+            
+        # 2. Blit Surface Statique
+        self.screen.blit(self.ui_surface, (0, 0))
+        
+        # 3. Éléments dynamiques (Slot actif, icônes, barres)
+        sx = hotbar_x + slot_margin # Slot 0
+        sy = hotbar_y + slot_margin
+        
+        # Bordure active (Slot 0)
+        pygame.draw.rect(self.screen, (255, 255, 255), (sx, sy, slot_size, slot_size), 2)
+        
+        # Spray nasal dans le premier slot
+        spray_rect = self.spray_icon.get_rect(center=(sx + slot_size // 2, sy + slot_size // 2))
+        self.screen.blit(self.spray_icon, spray_rect)
+        
+        # Barre de durabilité
+        if self.player.ammo < self.player.max_ammo:
+            ratio = self.player.ammo / self.player.max_ammo
+            bar_w = slot_size - 6
+            bar_h = 4
+            bar_x = sx + 3
+            bar_y = sy + slot_size - 8
+            
+            # Couleur
+            if ratio > 0.5:
+                color = (0, 255, 0) # Vert
+            elif ratio > 0.2:
+                color = (255, 165, 0) # Orange
             else:
-                pygame.draw.rect(self.screen, (40, 40, 40), (sx, sy, slot_size, slot_size), 1)
+                color = (255, 0, 0) # Rouge
+            
+            # Fond noir
+            pygame.draw.rect(self.screen, (0, 0, 0), (bar_x, bar_y, bar_w, bar_h))
+            # Barre
+            pygame.draw.rect(self.screen, color, (bar_x, bar_y, bar_w * ratio, bar_h))
         
         # === CŒURS AU-DESSUS DU HOTBAR (à gauche) ===
         heart_y = hotbar_y - 28
@@ -644,6 +661,8 @@ class Game:
                 break
                 
             dt = self.clock.tick(FPS) / 1000
+            # Sécurité : Si le jeu lag trop (ex: changement d'onglet), on ralentit le temps plutôt que de casser la physique
+            dt = min(dt, 0.1)
             
             self.handle_events()
             self.manage_music()

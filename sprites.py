@@ -117,7 +117,7 @@ class Player(pygame.sprite.Sprite):
             self.direction.x = -1
         elif keys[pygame.K_d] or keys[pygame.K_RIGHT]:
             self.direction.x = 1
-        if self.direction.length() > 0:
+        if self.direction.length_squared() > 0:
             self.direction = self.direction.normalize()
             self.is_moving = True
         else:
@@ -136,6 +136,9 @@ class Player(pygame.sprite.Sprite):
 
 
 class Enemy(pygame.sprite.Sprite):
+    
+    # Dictionnaire pour stocker les images chargées (Optimisation Web)
+    _assets_cache = {} 
     
     # Config des types de monstres
     TYPES = {
@@ -161,9 +164,16 @@ class Enemy(pygame.sprite.Sprite):
         self.color = config['color']
         
         # Taille selon le type
+        # Taille selon le type
         self.size = 128 if monster_type == 'yellow' else 64
         
-        self.load_images()
+        # Gestion du cache d'images
+        if monster_type not in Enemy._assets_cache:
+            self.load_images_for_type(monster_type)
+            
+        cache = Enemy._assets_cache[monster_type]
+        self.static_images = cache['static']
+        self.animations = cache['anim']
         
         # Animation
         self.direction_name = 'south'
@@ -200,7 +210,7 @@ class Enemy(pygame.sprite.Sprite):
         self.shoot_cooldown = 2000  # 2 secondes
         self.last_shoot_time = pygame.time.get_ticks()
     
-    def load_images(self):
+    def load_images_for_type(self, m_type):
         # Charger le spritesheet
         spritesheet = pygame.image.load('assets/graphics/spritesheet/snot.png').convert_alpha()
         
@@ -218,8 +228,8 @@ class Enemy(pygame.sprite.Sprite):
             'north', 'north-east', 'east', 'south-east'
         ]
         
-        self.static_images = {}
-        self.animations = {}
+        static_images = {}
+        animations = {}
         
         for row, direction in enumerate(directions_order):
             # Colonne 0 = statique
@@ -228,20 +238,26 @@ class Enemy(pygame.sprite.Sprite):
             static_img = pygame.transform.scale(static_img, (self.size, self.size))
             if self.color:
                 static_img.fill(self.color, special_flags=pygame.BLEND_MULT)
-            self.static_images[direction] = static_img
+            static_images[direction] = static_img
             
             # Colonnes 1-6 = animation
-            self.animations[direction] = []
+            animations[direction] = []
             for col in range(1, cols):
                 frame_rect = pygame.Rect(col * cell_width, row * cell_height, cell_width, cell_height)
                 frame_img = spritesheet.subsurface(frame_rect).copy()
                 frame_img = pygame.transform.scale(frame_img, (self.size, self.size))
                 if self.color:
                     frame_img.fill(self.color, special_flags=pygame.BLEND_MULT)
-                self.animations[direction].append(frame_img)
+                animations[direction].append(frame_img)
+        
+        # Sauvegarde dans le cache
+        Enemy._assets_cache[m_type] = {
+            'static': static_images,
+            'anim': animations
+        }
     
     def get_direction_name(self, direction):
-        if direction.length() == 0:
+        if direction.length_squared() == 0:
             return
         
         if direction.y < 0 and abs(direction.x) < 0.4:
@@ -268,9 +284,26 @@ class Enemy(pygame.sprite.Sprite):
         self.image = self.animations[self.direction_name][int(self.frame_index)]
     
     def move(self, dt):
-        direction = self.player.pos - self.pos
+        # Vecteur vers le joueur
+        to_player = self.player.pos - self.pos
+        if to_player.length_squared() > 0:
+            to_player = to_player.normalize()
+            
+        # Vecteur de séparation (Anti-stacking)
+        separation = pygame.math.Vector2(0, 0)
+        for other in self.groups_ref[1]: # self.enemies group
+            if other is not self:
+                dist_sq = (self.pos - other.pos).length_squared()
+                # Rayon de séparation (taille du sprite)
+                if 0 < dist_sq < self.size**2:
+                    dist = dist_sq ** 0.5
+                    push = self.pos - other.pos
+                    separation += push.normalize() / dist
         
-        if direction.length() > 0:
+        # On combine : Direction joueur + Séparation * force
+        direction = to_player + separation * 1.5
+        
+        if direction.length_squared() > 0:
             direction = direction.normalize()
         
         # Comportement spécifique : Blue (Reste à distance et tire)
