@@ -20,7 +20,7 @@ class Player(pygame.sprite.Sprite):
         self.animation_speed = 12
         self.is_moving = False
         
-        # Image par défaut (statique)
+        # Image par défaut
         self.image = self.static_images['south']
         
         self.rect = self.image.get_rect(center=pos)
@@ -29,7 +29,7 @@ class Player(pygame.sprite.Sprite):
         self.pos = pygame.math.Vector2(pos)
         self.direction = pygame.math.Vector2(0, 0)
         self.speed = 500
-        self.base_speed = 500  # Vitesse de base pour pouvoir ralentir
+        self.base_speed = 500  # Vitesse de base
         
         # Munitions
         self.ammo = MAX_AMMO
@@ -37,10 +37,9 @@ class Player(pygame.sprite.Sprite):
         self.next_shot_special = False
     
     def load_images(self):
-        # Charger le spritesheet
+        # Spritesheet
         spritesheet = pygame.image.load('assets/graphics/spritesheet/leak.png').convert_alpha()
         
-        # Dimensions du spritesheet
         sheet_width = spritesheet.get_width()
         sheet_height = spritesheet.get_height()
         cols = 7  # 1 static + 6 anim
@@ -48,7 +47,7 @@ class Player(pygame.sprite.Sprite):
         cell_width = sheet_width // cols
         cell_height = sheet_height // rows
         
-        # Ordre des directions dans le spritesheet (lignes)
+        # Ordre des directions dans le spritesheet
         directions_order = [
             'south', 'south-west', 'west', 'north-west',
             'north', 'north-east', 'east', 'south-east'
@@ -74,7 +73,6 @@ class Player(pygame.sprite.Sprite):
         if self.direction.x == 0 and self.direction.y == 0:
             return
         
-        # 8 directions
         if self.direction.y < 0 and abs(self.direction.x) < 0.4:
             self.direction_name = 'north'
         elif self.direction.y > 0 and abs(self.direction.x) < 0.4:
@@ -164,10 +162,8 @@ class Enemy(pygame.sprite.Sprite):
         self.color = config['color']
         
         # Taille selon le type
-        # Taille selon le type
         self.size = 128 if monster_type == 'yellow' else 64
         
-        # Gestion du cache d'images
         if monster_type not in Enemy._assets_cache:
             self.load_images_for_type(monster_type)
             
@@ -180,12 +176,12 @@ class Enemy(pygame.sprite.Sprite):
         self.frame_index = 0
         self.animation_speed = self.speed / 25  # Adapté à la vitesse
         
-        # Image par défaut (statique)
+        # Image par défaut
         self.image = self.static_images['south']
         
         self.rect = self.image.get_rect(center=pos)
         
-        # Hitbox plus petite pour le purple (plus dur à toucher)
+        # Hitbox plus petite pour le purple
         if monster_type == 'purple':
             self.hitbox = self.rect.inflate(-50, -50)
         else:
@@ -193,7 +189,7 @@ class Enemy(pygame.sprite.Sprite):
         
         self.pos = pygame.math.Vector2(pos)
         
-        # Timer TP pour le violet (très fréquent)
+        # Timer TP pour le violet
         self.tp_cooldown = 800 if monster_type == 'purple' else 3000
         self.last_tp = pygame.time.get_ticks()
         
@@ -206,15 +202,14 @@ class Enemy(pygame.sprite.Sprite):
         self.hit_duration = 100 # ms
         self.is_hit = False
         
-        # Pour le bleu (Tir)
+        # Tir pour le bleu
         self.shoot_cooldown = 2000  # 2 secondes
         self.last_shoot_time = pygame.time.get_ticks()
     
     def load_images_for_type(self, m_type):
-        # Charger le spritesheet
+        # Spritesheet
         spritesheet = pygame.image.load('assets/graphics/spritesheet/snot.png').convert_alpha()
         
-        # Dimensions du spritesheet
         sheet_width = spritesheet.get_width()
         sheet_height = spritesheet.get_height()
         cols = 7  # 1 static + 6 anim
@@ -222,7 +217,7 @@ class Enemy(pygame.sprite.Sprite):
         cell_width = sheet_width // cols
         cell_height = sheet_height // rows
         
-        # Ordre des directions dans le spritesheet (lignes)
+        # Ordre des directions dans le spritesheet
         directions_order = [
             'south', 'south-west', 'west', 'north-west',
             'north', 'north-east', 'east', 'south-east'
@@ -250,7 +245,6 @@ class Enemy(pygame.sprite.Sprite):
                     frame_img.fill(self.color, special_flags=pygame.BLEND_MULT)
                 animations[direction].append(frame_img)
         
-        # Sauvegarde dans le cache
         Enemy._assets_cache[m_type] = {
             'static': static_images,
             'anim': animations
@@ -284,29 +278,26 @@ class Enemy(pygame.sprite.Sprite):
         self.image = self.animations[self.direction_name][int(self.frame_index)]
     
     def move(self, dt):
-        # Vecteur vers le joueur
         to_player = self.player.pos - self.pos
         if to_player.length_squared() > 0:
             to_player = to_player.normalize()
             
-        # Séparation (Anti-stacking)
+        # Séparation
         scan_rect = self.rect.inflate(10, 10) 
         neighbors = [e for e in self.groups_ref[1] if e is not self and scan_rect.colliderect(e.rect)]
         
         separation = pygame.math.Vector2(0, 0)
-        # Force de répulsion sur les voisins proches
         for other in neighbors:
             push = self.pos - other.pos
-            if 0 < push.length_squared() < self.size**2: # Protection div/0
-                separation += push.normalize() / push.length() # Force inverse à la distance
+            if 0 < push.length_squared() < self.size**2: 
+                separation += push.normalize() / push.length()
         
-        # On combine : Direction joueur + Séparation * force
         direction = to_player + separation * 1.5
         
         if direction.length_squared() > 0:
             direction = direction.normalize()
         
-        # Comportement spécifique : Blue (Reste à distance et tire)
+        # Comportement spécifique : Blue
         if self.monster_type == 'blue':
             dist_to_player = (self.player.pos - self.pos).length()
             desired_dist = 300
@@ -314,7 +305,7 @@ class Enemy(pygame.sprite.Sprite):
             # Si trop proche, recule
             if dist_to_player < desired_dist - 50:
                 direction = -direction
-            # Si à bonne distance, ne bouge pas (ou bouge peu)
+            # Si à bonne distance, ne bouge pas
             elif dist_to_player < desired_dist + 50:
                 direction = pygame.math.Vector2(0, 0)
             
@@ -324,7 +315,7 @@ class Enemy(pygame.sprite.Sprite):
                 self.shoot_at_player()
                 self.last_shoot_time = current_time
         
-        # Zigzag pour le purple (plus dur à viser)
+        # Zigzag pour le purple
         if self.monster_type == 'purple':
             self.zigzag_timer += dt
             if self.zigzag_timer > 0.2:
@@ -350,11 +341,11 @@ class Enemy(pygame.sprite.Sprite):
             else:
                 self.is_hit = False
         
-        # Camouflage du violet (quasi-invisible quand proche)
+        # Camouflage du violet
         if self.monster_type == 'purple':
             dist = (self.player.pos - self.pos).length()
             if dist < 300:
-                # Proche = très faible opacité (presque invisible sur sol sombre)
+                # Proche = très faible opacité
                 self.image.set_alpha(30)
             else:
                 # Loin = visible en violet
@@ -378,7 +369,7 @@ class Enemy(pygame.sprite.Sprite):
         if now - self.last_tp < self.tp_cooldown:
             return
         
-        # Trouve l'ennemi le plus proche du joueur (autre que soi)
+        # Trouve l'ennemi le plus proche du joueur
         closest = None
         min_dist = float('inf')
         
@@ -429,7 +420,7 @@ class Bullet(pygame.sprite.Sprite):
         
         self.is_special = is_special
         
-        # Projectile: Barre cyan orientée (ou ROUGE si spécial)
+        # Projectile: Cyan (ou Rouge si spécial)
         self.image = pygame.Surface((24, 6), pygame.SRCALPHA)
         if is_special:
             self.image.fill(RED)
@@ -456,14 +447,12 @@ class Bullet(pygame.sprite.Sprite):
         self.pos += self.direction * self.speed * dt
         self.rect.center = (round(self.pos.x), round(self.pos.y))
         
-        # Disparaît après lifetime
         if pygame.time.get_ticks() - self.spawn_time > self.lifetime:
             self.kill()
 
 
 class Particle(pygame.sprite.Sprite):
     
-    # Surface unique pour économiser la mémoire
     master_surf = pygame.Surface((4, 4))
     master_surf.fill((255, 255, 255)) 
 
@@ -499,7 +488,6 @@ class Puddle(pygame.sprite.Sprite):
     def __init__(self, pos, groups):
         super().__init__(groups)
         
-        # Grande flaque verte semi-transparente
         size = randint(40, 60)
         self.image = pygame.Surface((size, size), pygame.SRCALPHA)
         pygame.draw.circle(self.image, (0, 255, 0, 100), (size//2, size//2), size//2)
@@ -548,7 +536,7 @@ class Item(pygame.sprite.Sprite):
     def __init__(self, pos, groups):
         super().__init__(groups)
         
-        # Visuel : Fiole spray 
+        # Spray Nasal
         self.image = pygame.image.load('assets/graphics/HUD/nasal_spray.png').convert_alpha()
         self.image = pygame.transform.scale(self.image, (40, 40))
         self.type = 'nasal_spray'

@@ -21,15 +21,13 @@ class CameraGroup(pygame.sprite.Group):
         self.half_width = self.display_surface.get_width() // 2
         self.half_height = self.display_surface.get_height() // 2
         
-        # Décalage de la caméra
         self.offset = pygame.math.Vector2()
         
-        # Création du sol dynamique
         self.floor_surf = pygame.Surface((TILESIZE, TILESIZE))
         self.floor_surf.fill((20, 20, 20))
         pygame.draw.rect(self.floor_surf, (40, 40, 40), self.floor_surf.get_rect(), width=1)
         
-        # Fog of war avec alpha
+        # Fog
         self.fog_surf = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
         
         # Génère la texture de lumière
@@ -52,7 +50,6 @@ class CameraGroup(pygame.sprite.Group):
         self.offset.x = player.rect.centerx - self.half_width
         self.offset.y = player.rect.centery - self.half_height
         
-        # Tuilage infini du sol
         start_col = int(self.offset.x // TILESIZE) - 1
         end_col = int((self.offset.x + WINDOW_WIDTH) // TILESIZE) + 1
         start_row = int(self.offset.y // TILESIZE) - 1
@@ -64,16 +61,13 @@ class CameraGroup(pygame.sprite.Group):
                 y = row * TILESIZE - self.offset.y
                 self.display_surface.blit(self.floor_surf, (x, y))
         
-        # Sépare les flaques et les autres sprites
         puddles = [s for s in self.sprites() if isinstance(s, Puddle)]
         others = [s for s in self.sprites() if not isinstance(s, Puddle)]
         
-        # Dessine les flaques en premier (au sol)
         for sprite in puddles:
             offset_pos = sprite.rect.topleft - self.offset
             self.display_surface.blit(sprite.image, offset_pos)
             
-        # Dessine les autres sprites triés par Y (Y-sort)
         for sprite in sorted(others, key=lambda s: s.rect.centery):
             offset_pos = sprite.rect.topleft - self.offset
             self.display_surface.blit(sprite.image, offset_pos)
@@ -130,8 +124,8 @@ class Game:
         
         # Optimisation rendu UI
         self.ui_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
-        self.ui_surface_dirty = True # Flag pour redessiner si besoin
-        
+        self.ui_surface_dirty = True
+
         # Charge les sons (3 variations chacun)
         audio_path = 'assets/audio/'
         self.shoot_sounds = [
@@ -171,10 +165,10 @@ class Game:
             mixer.Sound(f'{audio_path}flaque 3.wav')
         ]
         
-        # Channel dédié pour le son "empty" (non-empilable)
+        # Channel dédié pour le son "empty"
         self.empty_channel = mixer.Channel(0)
         self.puddle_channel = mixer.Channel(1)
-        self.shoot_channel = mixer.Channel(2) # Pour éviter le spam de tir
+        self.shoot_channel = mixer.Channel(2)
         
         # Timer pour spawn des ennemis
         self.enemy_event = pygame.event.custom_type()
@@ -184,16 +178,15 @@ class Game:
         self.state = 'menu' # menu, game, game_over
         self.game_over_timer = 0
         
-        # Cache Textes
         self.last_score = -1
         self.score_surf = None
         self.score_shadow = None
-        # Item name est statique
+
         item_text = "Nasal Spray"
         self.item_name_shadow = self.hotbar_font.render(item_text, True, (0, 0, 0))
         self.item_name_surf = self.hotbar_font.render(item_text, True, (255, 255, 255))
         
-        # Playlist Musicale
+        # Playlist
         self.playlist = [
             'track_1.wav',
             'track_2.wav',
@@ -218,14 +211,13 @@ class Game:
     def play_music(self):
         # Arrêter la musique précédente pour éviter le chevauchement
         pygame.mixer.music.stop()
-        # Charge et joue la musique actuelle EN BOUCLE
+        # Charge et joue la musique actuelle en boucle
         track_name = self.playlist[self.current_track]
         pygame.mixer.music.load(f'assets/audio/{track_name}')
         pygame.mixer.music.set_volume(0.5)  # Volume à 50%
-        pygame.mixer.music.play(-1)  # -1 = boucle infinie
+        pygame.mixer.music.play(-1)  # boucle
 
     def start_new_game(self):
-        # On garde la même musique (elle a changé à la mort précédente)
         if not hasattr(self, 'current_track'):
             self.current_track = 0
         
@@ -258,8 +250,7 @@ class Game:
         x = self.player.rect.centerx + distance * cos(radians(angle))
         y = self.player.rect.centery + distance * sin(radians(angle))
         
-        # Types possibles selon le TEMPS DE JEU (Progression par vagues temporelles)
-        # 0s, 30s, 60s, 90s, 120s
+        # Types possibles selon le TEMPS DE JEU
         elapsed_time = (pygame.time.get_ticks() - self.game_start_time) / 1000
         
         potential_spawns = [
@@ -275,10 +266,9 @@ class Game:
         available = [s for s in potential_spawns if elapsed_time >= s['min_time']]
         
         if not available:
-            # Fallback
             monster_type = 'normal'
         else:
-            # Choix pondéré parmi les disponibles
+            # Choix parmi les disponibles
             types = [s['type'] for s in available]
             weights = [s['weight'] for s in available]
             monster_type = choices(types, weights=weights, k=1)[0]
@@ -329,22 +319,21 @@ class Game:
         self.shoot_channel.stop()
         self.shoot_channel.play(choice(self.shoot_sounds))
         
-        # + Son de sang si spécial
+        # + Son BLOOD SHOOT
         if is_special_shot:
             choice(self.blood_shoot_sounds).play()
         
-        # Position du joueur à l'écran (toujours au centre)
+        # Position du joueur
         player_screen_pos = pygame.math.Vector2(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
         mouse_vec = pygame.math.Vector2(mouse_pos)
         
-        # Calcul de la direction
         direction = mouse_vec - player_screen_pos
         
         # Fait regarder le joueur vers la souris
         if direction.length_squared() > 0:
             norm_dir = direction.normalize()
             
-            # Détermine la direction (8 directions)
+            # Détermine la direction 
             if norm_dir.y < -0.4 and abs(norm_dir.x) < 0.4:
                 self.player.direction_name = 'north'
             elif norm_dir.y > 0.4 and abs(norm_dir.x) < 0.4:
@@ -374,7 +363,7 @@ class Game:
     
     def handle_events(self):
         for event in pygame.event.get():
-            # Gestion du premier input pour lancer l'audio (Web Autoplay)
+            # Gestion du premier input pour lancer l'audio
             if not self.has_interaction and (event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN):
                 self.has_interaction = True
                 self.play_music()
@@ -382,7 +371,7 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             
-            # Gestion de la pause (Focus perdu)
+            # Gestion de la pause
             elif event.type == pygame.WINDOWFOCUSLOST:
                 self.paused = True
                 pygame.mixer.music.pause()
@@ -403,11 +392,11 @@ class Game:
         hits = pygame.sprite.groupcollide(self.bullets, self.enemies, True, False)
         
         for bullet, enemies_hit in hits.items():
-            # Capture si c'est un tir spécial AVANT tout traitement
+            # Capture si c'est un tir spécial
             is_special_kill = getattr(bullet, 'is_special', False)
             
             for enemy in enemies_hit:
-                # Gestion One-Shot pour la balle spéciale
+                # Gestion One-Shot
                 if is_special_kill:
                     enemy.health = 0
                 else:
@@ -424,7 +413,7 @@ class Game:
                     # Score selon le type
                     self.score += self.SCORE_VALUES.get(enemy.monster_type, 10)
                     
-                    # Rouge donne un cœur (max 3)
+                    # Rouge donne un cœur
                     if enemy.monster_type == 'red' and self.hearts < 3:
                         self.hearts += 1
                     
@@ -435,13 +424,12 @@ class Game:
                             Enemy(self, [self.all_sprites, self.enemies], 
                                   enemy.pos + offset, self.player, 'green')
                     
-                    # Les verts et jaunes laissent une flaque
                     if enemy.monster_type in ['green', 'yellow']:
                         Puddle(enemy.pos, [self.all_sprites, self.puddles])
                         
-                    # Drop d'item (munitions)
+                    # Drop d'item
                     # Toujours pour le bleu
-                    # Sinon, chance globale ajustée : si déjà un item au sol, chance réduite
+                    # Sinon, chance ajustée
                     if enemy.monster_type == 'blue':
                         Item(enemy.pos, [self.all_sprites, self.items])
                     else:
@@ -455,8 +443,6 @@ class Game:
                     enemy.kill()
 
     def manage_music(self):
-        # Plus besoin de gérer le changement de musique ici
-        # La musique boucle en continu, et change uniquement à la mort
         pass
     
     def update(self, dt):
@@ -466,7 +452,7 @@ class Game:
         self.all_sprites.update(dt)
         self.check_bullet_collisions()
         
-        # Mort du joueur (collision hitbox)
+        # Mort du joueur
         for enemy in self.enemies:
             if self.player.hitbox.colliderect(enemy.hitbox):
                 self.hearts -= 1
@@ -481,7 +467,7 @@ class Game:
                     enemy.kill()
                 break
 
-        # Gestion des flaques de morve (Ralentissement avec hitbox)
+        # Gestion des flaques de morve
         is_slowed = False
         for puddle in self.puddles:
             if self.player.hitbox.colliderect(puddle.hitbox):
@@ -506,8 +492,7 @@ class Game:
                 self.state = 'game_over'
                 self.game_over_timer = pygame.time.get_ticks()
         
-        # Pickup items (Munitions)
-        # Collision précise avec Hitbox
+        # Pickup items 
         for item in self.items:
             if self.player.hitbox.colliderect(item.hitbox):
                 item.kill()
@@ -533,7 +518,6 @@ class Game:
             title_screen = pygame.transform.scale(title_screen, (WINDOW_WIDTH, WINDOW_HEIGHT))
             self.screen.blit(title_screen, (0, 0))
         except:
-            # Fallback si image corrompue
             self.screen.fill(BLACK)
             title_surf = self.font.render(TITLE, True, (0, 255, 255))
             text_surf = self.font.render("PRESS SPACE TO START", True, WHITE)
@@ -544,13 +528,12 @@ class Game:
         pygame.display.flip()
 
     def draw_game_over(self):
-        # Charger et afficher l'image de game over
+        # Afficher l'image de game over
         try:
             game_over_screen = pygame.image.load('assets/graphics/HUD/game_over_screen.png').convert()
             game_over_screen = pygame.transform.scale(game_over_screen, (WINDOW_WIDTH, WINDOW_HEIGHT))
             self.screen.blit(game_over_screen, (0, 0))
         except:
-            # Fallback si image non disponible
             self.screen.fill(BLACK)
             title_surf = self.font.render("GAME OVER", True, (255, 0, 0))
             score_surf = self.font.render(f"Score: {self.score}", True, WHITE)
@@ -569,7 +552,7 @@ class Game:
         pygame.display.flip()
     
     def draw_ui(self):
-        # === HOTBAR EN BAS (style Minecraft - 9 slots) ===
+        # Hotbar style Minecraft
         slot_size = 50
         slot_margin = 3
         num_slots = 9
@@ -578,36 +561,29 @@ class Game:
         hotbar_x = WINDOW_WIDTH // 2 - hotbar_width // 2
         hotbar_y = WINDOW_HEIGHT - hotbar_height - 10
         
-        # 1. Rendu statique (si nécessaire)
         if self.ui_surface_dirty:
-            self.ui_surface.fill((0,0,0,0)) # Transparent
+            self.ui_surface.fill((0,0,0,0))
             
             # Fond du hotbar
             pygame.draw.rect(self.ui_surface, (50, 50, 50), (hotbar_x, hotbar_y, hotbar_width, hotbar_height))
             pygame.draw.rect(self.ui_surface, (30, 30, 30), (hotbar_x, hotbar_y, hotbar_width, hotbar_height), 2)
             
-            # Dessine les 9 slots (fonds uniquement)
             for i in range(num_slots):
                 sx = hotbar_x + slot_margin + i * (slot_size + slot_margin)
                 sy = hotbar_y + slot_margin
                 
-                # Fond du slot
                 pygame.draw.rect(self.ui_surface, (80, 80, 80), (sx, sy, slot_size, slot_size))
                 
-                # Bordure slot inactif
                 if i != 0:
                     pygame.draw.rect(self.ui_surface, (40, 40, 40), (sx, sy, slot_size, slot_size), 1)
             
             self.ui_surface_dirty = False
             
-        # 2. Blit Surface Statique
         self.screen.blit(self.ui_surface, (0, 0))
         
-        # 3. Éléments dynamiques (Slot actif, icônes, barres)
         sx = hotbar_x + slot_margin # Slot 0
         sy = hotbar_y + slot_margin
         
-        # Bordure active (Slot 0)
         pygame.draw.rect(self.screen, (255, 255, 255), (sx, sy, slot_size, slot_size), 2)
         
         # Spray nasal dans le premier slot
@@ -635,19 +611,18 @@ class Game:
             # Barre
             pygame.draw.rect(self.screen, color, (bar_x, bar_y, bar_w * ratio, bar_h))
         
-        # === CŒURS AU-DESSUS DU HOTBAR (à gauche) ===
+        # Coeur Hotbar
         heart_y = hotbar_y - 28
         for i in range(self.hearts):
             heart_rect = self.heart_icon.get_rect(center=(hotbar_x + 15 + i * 28, heart_y))
             self.screen.blit(self.heart_icon, heart_rect)
         
-        # === NOM DE L'ITEM ===
+        # Nom de l'item
         name_x = WINDOW_WIDTH // 2 - self.item_name_surf.get_width() // 2
         name_y = hotbar_y - 25
         self.screen.blit(self.item_name_shadow, (name_x + 1, name_y + 1))
         self.screen.blit(self.item_name_surf, (name_x, name_y))
         
-        # === SCORE ===
         if self.score != self.last_score or self.score_surf is None:
             score_text = f'Score: {self.score}'
             self.score_shadow = self.hotbar_font.render(score_text, True, (0, 0, 0))
@@ -669,7 +644,6 @@ class Game:
                 break
                 
             dt = self.clock.tick(FPS) / 1000
-            # Sécurité : Si le jeu lag trop (ex: changement d'onglet), on ralentit le temps plutôt que de casser la physique
             dt = min(dt, 0.1)
             
             self.handle_events()
@@ -685,7 +659,7 @@ class Game:
                 self.update_game_over()
                 self.draw_game_over()
             
-            await asyncio.sleep(0)  # Essentiel pour Pygbag
+            await asyncio.sleep(0)  # Pygbag
         
         pygame.quit()
 
