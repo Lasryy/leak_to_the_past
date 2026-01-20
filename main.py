@@ -226,8 +226,9 @@ class Game:
         # Charge et joue la musique actuelle
         track_name = self.playlist[self.current_track]
         pygame.mixer.music.load(f'assets/audio/{track_name}')
-        pygame.mixer.music.set_volume(MUSIC_VOLUME * MASTER_VOLUME)
+        pygame.mixer.music.set_volume(MUSIC_VOLUME * self.master_volume)
         pygame.mixer.music.play()
+        self.music_started = True
 
     def start_new_game(self):
         if not hasattr(self, 'current_track'):
@@ -470,9 +471,11 @@ class Game:
 
     def manage_music(self):
         # Vérifie si la musique est terminée pour passer à la suivante
-        if self.has_interaction and not pygame.mixer.music.get_busy():
-            self.current_track = (self.current_track + 1) % len(self.playlist)
-            self.play_music()
+        # On ne change de track que si la musique a déjà été jouée au moins une fois
+        if self.has_interaction and hasattr(self, 'music_started') and self.music_started:
+            if not pygame.mixer.music.get_busy():
+                self.current_track = (self.current_track + 1) % len(self.playlist)
+                self.play_music()
     
     def update(self, dt):
         self.all_sprites.update(dt)
