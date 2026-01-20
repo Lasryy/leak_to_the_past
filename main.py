@@ -95,6 +95,7 @@ class Game:
     }
     
     def __init__(self):
+        print("DEBUG: Game.__init__ starting...")
         pygame.init()
         mixer.init()
         mixer.set_num_channels(32) 
@@ -217,7 +218,9 @@ class Game:
         # Timer pour l'astuce du volume
         self.hint_timer = 0
         
+        print("DEBUG: Game.__init__ about to call start_new_game...")
         self.start_new_game()
+        print("DEBUG: Game.__init__ completed!")
     
     def play_music(self):
         # Charge et joue la musique actuelle
