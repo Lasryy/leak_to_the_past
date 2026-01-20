@@ -28,3 +28,7 @@ MAX_AMMO = 30
 ITEM_DESPAWN_TIME = 10000  # 10 secondes
 DROP_CHANCE = 0.15  # 15% de chance de drop
 
+# Paramètres audio (0.0 à 1.0)
+MASTER_VOLUME = 1.0    # Volume principal
+MUSIC_VOLUME = 0.5     # Volume de la musique
+SFX_VOLUME = 0.7       # Volume des effets sonores

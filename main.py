@@ -7,7 +7,7 @@ import pygame
 from pygame import mixer
 from random import randint, random, choices, choice, shuffle
 from math import cos, sin, radians
-from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, WHITE, TILESIZE, MAX_AMMO, DROP_CHANCE
+from settings import WINDOW_WIDTH, WINDOW_HEIGHT, FPS, TITLE, BLACK, WHITE, TILESIZE, MAX_AMMO, DROP_CHANCE, MASTER_VOLUME, MUSIC_VOLUME, SFX_VOLUME
 from sprites import Player, Enemy, Bullet, Particle, Puddle, Item
 
 
@@ -104,6 +104,10 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         
+        # Volume (modifiable en jeu)
+        self.master_volume = MASTER_VOLUME
+        self.volume_display_timer = 0
+        
         # Police pour le HUD
         self.font = pygame.font.Font(None, 40)
         self.small_font = pygame.font.Font(None, 24)
@@ -129,41 +133,48 @@ class Game:
         # Charge les sons (3 variations chacun)
         audio_path = 'assets/audio/'
         self.shoot_sounds = [
-            mixer.Sound(f'{audio_path}nasal_spray.wav'),
-            mixer.Sound(f'{audio_path}nasal_spray 2.wav'),
-            mixer.Sound(f'{audio_path}nasal_spray 3.wav')
+            mixer.Sound(f'{audio_path}nasal_spray.mp3'),
+            mixer.Sound(f'{audio_path}nasal_spray 2.mp3'),
+            mixer.Sound(f'{audio_path}nasal_spray 3.mp3')
         ]
         self.empty_sounds = [
-            mixer.Sound(f'{audio_path}nasal_spray empty.wav'),
-            mixer.Sound(f'{audio_path}nasal_spray empty 2.wav'),
-            mixer.Sound(f'{audio_path}nasal_spray empty 3.wav')
+            mixer.Sound(f'{audio_path}nasal_spray empty.mp3'),
+            mixer.Sound(f'{audio_path}nasal_spray empty 2.mp3'),
+            mixer.Sound(f'{audio_path}nasal_spray empty 3.mp3')
         ]
         self.blue_shoot_sounds = [
-            mixer.Sound(f'{audio_path}blue shoot.wav'),
-            mixer.Sound(f'{audio_path}blue shoot 2.wav'),
-            mixer.Sound(f'{audio_path}blue shoot 3.wav')
+            mixer.Sound(f'{audio_path}blue shoot.mp3'),
+            mixer.Sound(f'{audio_path}blue shoot 2.mp3'),
+            mixer.Sound(f'{audio_path}blue shoot 3.mp3')
         ]
         self.recharge_sounds = [
-            mixer.Sound(f'{audio_path}recharge.wav'),
-            mixer.Sound(f'{audio_path}recharge 2.wav'),
-            mixer.Sound(f'{audio_path}recharge 3.wav')
+            mixer.Sound(f'{audio_path}recharge.mp3'),
+            mixer.Sound(f'{audio_path}recharge 2.mp3'),
+            mixer.Sound(f'{audio_path}recharge 3.mp3')
         ]
         self.spawn_sounds = [
-            mixer.Sound(f'{audio_path}snot spawn.wav'),
-            mixer.Sound(f'{audio_path}snot spawn 2.wav'),
-            mixer.Sound(f'{audio_path}snot spawn 3.wav')
+            mixer.Sound(f'{audio_path}snot spawn.mp3'),
+            mixer.Sound(f'{audio_path}snot spawn 2.mp3'),
+            mixer.Sound(f'{audio_path}snot spawn 3.mp3')
         ]
         self.blood_shoot_sounds = [
-            mixer.Sound(f'{audio_path}blood_shoot.wav'),
-            mixer.Sound(f'{audio_path}blood_shoot 2.wav'),
-            mixer.Sound(f'{audio_path}blood_shoot 3.wav'),
-            mixer.Sound(f'{audio_path}blood_shoot 4.wav')
+            mixer.Sound(f'{audio_path}blood_shoot.mp3'),
+            mixer.Sound(f'{audio_path}blood_shoot 2.mp3'),
+            mixer.Sound(f'{audio_path}blood_shoot 3.mp3'),
+            mixer.Sound(f'{audio_path}blood_shoot 4.mp3')
         ]
         self.puddle_sounds = [
-            mixer.Sound(f'{audio_path}flaque.wav'),
-            mixer.Sound(f'{audio_path}flaque 2.wav'),
-            mixer.Sound(f'{audio_path}flaque 3.wav')
+            mixer.Sound(f'{audio_path}flaque.mp3'),
+            mixer.Sound(f'{audio_path}flaque 2.mp3'),
+            mixer.Sound(f'{audio_path}flaque 3.mp3')
         ]
+        
+        # Applique le volume aux effets sonores
+        all_sfx = (self.shoot_sounds + self.empty_sounds + self.blue_shoot_sounds + 
+                   self.recharge_sounds + self.spawn_sounds + self.blood_shoot_sounds + 
+                   self.puddle_sounds)
+        for sound in all_sfx:
+            sound.set_volume(SFX_VOLUME * MASTER_VOLUME)
         
         # Channel dédié pour le son "empty"
         self.empty_channel = mixer.Channel(0)
@@ -188,12 +199,12 @@ class Game:
         
         # Playlist
         self.playlist = [
-            'track_1.wav',
-            'track_2.wav',
-            'track_3.wav',
-            'track_4.wav',
-            'track_5.wav',
-            'track_6.wav'
+            'track_1.mp3',
+            'track_2.mp3',
+            'track_3.mp3',
+            'track_4.mp3',
+            'track_5.mp3',
+            'track_6.mp3'
         ]
         shuffle(self.playlist)
         self.current_track = 0
@@ -203,19 +214,17 @@ class Game:
         self.last_music_change = pygame.time.get_ticks()
         self.has_interaction = False
         
-        # Gestion Pause
-        self.paused = False
+        # Timer pour l'astuce du volume
+        self.hint_timer = 0
         
         self.start_new_game()
     
     def play_music(self):
-        # Arrêter la musique précédente pour éviter le chevauchement
-        pygame.mixer.music.stop()
-        # Charge et joue la musique actuelle en boucle
+        # Charge et joue la musique actuelle
         track_name = self.playlist[self.current_track]
         pygame.mixer.music.load(f'assets/audio/{track_name}')
-        pygame.mixer.music.set_volume(0.5)  # Volume à 50%
-        pygame.mixer.music.play(-1)  # boucle
+        pygame.mixer.music.set_volume(MUSIC_VOLUME * MASTER_VOLUME)
+        pygame.mixer.music.play()
 
     def start_new_game(self):
         if not hasattr(self, 'current_track'):
@@ -366,26 +375,40 @@ class Game:
             # Gestion du premier input pour lancer l'audio
             if not self.has_interaction and (event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN):
                 self.has_interaction = True
+                self.hint_timer = pygame.time.get_ticks()  # Démarre le timer de l'astuce
                 self.play_music()
                 
             if event.type == pygame.QUIT:
                 self.running = False
-            
-            # Gestion de la pause
-            elif event.type == pygame.WINDOWFOCUSLOST:
-                self.paused = True
-                pygame.mixer.music.pause()
-            elif event.type == pygame.WINDOWFOCUSGAINED:
-                self.paused = False
-                pygame.mixer.music.unpause()
                 
-            elif event.type == self.enemy_event and self.state == 'game' and not self.paused:
+            elif event.type == self.enemy_event and self.state == 'game':
                 self.spawn_enemy()
             
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                # Peut tirer seulement en jeu, si immobile et pas en pause
-                if self.state == 'game' and not self.player.is_moving and not self.paused:
+                # Peut tirer seulement en jeu, si immobile
+                if self.state == 'game' and not self.player.is_moving:
                     self.shoot(event.pos)
+            
+            # Contrôle du volume avec +/-
+            elif event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_PLUS, pygame.K_EQUALS, pygame.K_KP_PLUS):
+                    self.adjust_volume(0.1)
+                elif event.key in (pygame.K_MINUS, pygame.K_KP_MINUS):
+                    self.adjust_volume(-0.1)
+    
+    def adjust_volume(self, delta):
+        """Ajuste le volume principal"""
+        self.master_volume = max(0.0, min(1.0, self.master_volume + delta))
+        # Applique aux effets sonores
+        all_sfx = (self.shoot_sounds + self.empty_sounds + self.blue_shoot_sounds + 
+                   self.recharge_sounds + self.spawn_sounds + self.blood_shoot_sounds + 
+                   self.puddle_sounds)
+        for sound in all_sfx:
+            sound.set_volume(SFX_VOLUME * self.master_volume)
+        # Applique à la musique
+        pygame.mixer.music.set_volume(MUSIC_VOLUME * self.master_volume)
+        # Affiche le volume temporairement
+        self.volume_display_timer = pygame.time.get_ticks()
     
     def check_bullet_collisions(self):
         # Collisions balles/ennemis avec gestion de la vie
@@ -443,12 +466,12 @@ class Game:
                     enemy.kill()
 
     def manage_music(self):
-        pass
+        # Vérifie si la musique est terminée pour passer à la suivante
+        if self.has_interaction and not pygame.mixer.music.get_busy():
+            self.current_track = (self.current_track + 1) % len(self.playlist)
+            self.play_music()
     
     def update(self, dt):
-        if self.paused:
-            return
-            
         self.all_sprites.update(dt)
         self.check_bullet_collisions()
         
@@ -459,9 +482,6 @@ class Game:
                 if self.hearts <= 0:
                     self.state = 'game_over'
                     self.game_over_timer = pygame.time.get_ticks()
-                    # Change de musique à la mort
-                    self.current_track = (self.current_track + 1) % len(self.playlist)
-                    self.play_music()
                 else:
                     # Juste tuer l'ennemi qui a touché
                     enemy.kill()
@@ -631,6 +651,22 @@ class Game:
             
         self.screen.blit(self.score_shadow, (WINDOW_WIDTH - 151, 21))
         self.screen.blit(self.score_surf, (WINDOW_WIDTH - 150, 20))
+        
+        # Affiche le volume temporairement (2 secondes)
+        if pygame.time.get_ticks() - self.volume_display_timer < 2000:
+            vol_pct = int(self.master_volume * 100)
+            vol_text = f'Volume: {vol_pct}%'
+            vol_shadow = self.hotbar_font.render(vol_text, True, (0, 0, 0))
+            vol_surf = self.hotbar_font.render(vol_text, True, (255, 255, 255))
+            self.screen.blit(vol_shadow, (21, 21))
+            self.screen.blit(vol_surf, (20, 20))
+        # Affiche l'astuce du volume pendant 5 secondes au démarrage
+        elif self.hint_timer > 0 and pygame.time.get_ticks() - self.hint_timer < 5000:
+            hint_text = "Régler le volume avec + et -"
+            hint_shadow = self.hotbar_font.render(hint_text, True, (0, 0, 0))
+            hint_surf = self.hotbar_font.render(hint_text, True, (200, 200, 200))
+            self.screen.blit(hint_shadow, (21, 21))
+            self.screen.blit(hint_surf, (20, 20))
     
     def draw(self):
         self.screen.fill(BLACK)
