@@ -133,40 +133,40 @@ class Game:
         # Charge les sons (3 variations chacun)
         audio_path = 'assets/audio/'
         self.shoot_sounds = [
-            mixer.Sound(f'{audio_path}nasal_spray.mp3'),
-            mixer.Sound(f'{audio_path}nasal_spray 2.mp3'),
-            mixer.Sound(f'{audio_path}nasal_spray 3.mp3')
+            mixer.Sound(f'{audio_path}nasal_spray.ogg'),
+            mixer.Sound(f'{audio_path}nasal_spray 2.ogg'),
+            mixer.Sound(f'{audio_path}nasal_spray 3.ogg')
         ]
         self.empty_sounds = [
-            mixer.Sound(f'{audio_path}nasal_spray empty.mp3'),
-            mixer.Sound(f'{audio_path}nasal_spray empty 2.mp3'),
-            mixer.Sound(f'{audio_path}nasal_spray empty 3.mp3')
+            mixer.Sound(f'{audio_path}nasal_spray empty.ogg'),
+            mixer.Sound(f'{audio_path}nasal_spray empty 2.ogg'),
+            mixer.Sound(f'{audio_path}nasal_spray empty 3.ogg')
         ]
         self.blue_shoot_sounds = [
-            mixer.Sound(f'{audio_path}blue shoot.mp3'),
-            mixer.Sound(f'{audio_path}blue shoot 2.mp3'),
-            mixer.Sound(f'{audio_path}blue shoot 3.mp3')
+            mixer.Sound(f'{audio_path}blue shoot.ogg'),
+            mixer.Sound(f'{audio_path}blue shoot 2.ogg'),
+            mixer.Sound(f'{audio_path}blue shoot 3.ogg')
         ]
         self.recharge_sounds = [
-            mixer.Sound(f'{audio_path}recharge.mp3'),
-            mixer.Sound(f'{audio_path}recharge 2.mp3'),
-            mixer.Sound(f'{audio_path}recharge 3.mp3')
+            mixer.Sound(f'{audio_path}recharge.ogg'),
+            mixer.Sound(f'{audio_path}recharge 2.ogg'),
+            mixer.Sound(f'{audio_path}recharge 3.ogg')
         ]
         self.spawn_sounds = [
-            mixer.Sound(f'{audio_path}snot spawn.mp3'),
-            mixer.Sound(f'{audio_path}snot spawn 2.mp3'),
-            mixer.Sound(f'{audio_path}snot spawn 3.mp3')
+            mixer.Sound(f'{audio_path}snot spawn.ogg'),
+            mixer.Sound(f'{audio_path}snot spawn 2.ogg'),
+            mixer.Sound(f'{audio_path}snot spawn 3.ogg')
         ]
         self.blood_shoot_sounds = [
-            mixer.Sound(f'{audio_path}blood_shoot.mp3'),
-            mixer.Sound(f'{audio_path}blood_shoot 2.mp3'),
-            mixer.Sound(f'{audio_path}blood_shoot 3.mp3'),
-            mixer.Sound(f'{audio_path}blood_shoot 4.mp3')
+            mixer.Sound(f'{audio_path}blood_shoot.ogg'),
+            mixer.Sound(f'{audio_path}blood_shoot 2.ogg'),
+            mixer.Sound(f'{audio_path}blood_shoot 3.ogg'),
+            mixer.Sound(f'{audio_path}blood_shoot 4.ogg')
         ]
         self.puddle_sounds = [
-            mixer.Sound(f'{audio_path}flaque.mp3'),
-            mixer.Sound(f'{audio_path}flaque 2.mp3'),
-            mixer.Sound(f'{audio_path}flaque 3.mp3')
+            mixer.Sound(f'{audio_path}flaque.ogg'),
+            mixer.Sound(f'{audio_path}flaque 2.ogg'),
+            mixer.Sound(f'{audio_path}flaque 3.ogg')
         ]
         
         # Applique le volume aux effets sonores
@@ -199,12 +199,12 @@ class Game:
         
         # Playlist
         self.playlist = [
-            'track_1.mp3',
-            'track_2.mp3',
-            'track_3.mp3',
-            'track_4.mp3',
-            'track_5.mp3',
-            'track_6.mp3'
+            'track_1.ogg',
+            'track_2.ogg',
+            'track_3.ogg',
+            'track_4.ogg',
+            'track_5.ogg',
+            'track_6.ogg'
         ]
         shuffle(self.playlist)
         self.current_track = 0
