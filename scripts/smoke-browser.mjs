@@ -69,6 +69,32 @@ try {
   await page.keyboard.press('Space');
   await page.waitForTimeout(100);
   assert.equal(await page.locator('#pause-button').isEnabled(), true, 'Game did not enter playing state');
+  // Clicking, aiming and dragging on the playfield must not select or focus it.
+  const playfield = page.locator('#game');
+  assert.equal(await playfield.getAttribute('tabindex'), null, 'Playfield should not be a tab stop');
+  await playfield.click({position:{x:500,y:270}});
+  const focusCSS = await page.evaluate(() => {
+    const canvas = document.getElementById('game');
+    const frame = document.getElementById('game-frame');
+    return {
+      frameShadow: getComputedStyle(frame).boxShadow,
+      canvasOutline: getComputedStyle(canvas).outlineStyle,
+      userSelect: getComputedStyle(canvas).userSelect,
+      focusIsCanvas: document.activeElement === canvas,
+      gamePaused: !document.getElementById('pause-overlay').hidden
+    };
+  });
+  assert.equal(focusCSS.focusIsCanvas, false, 'Click left the canvas selected/focused');
+  assert.equal(focusCSS.frameShadow, 'none', 'Unwanted bounding frame around game');
+  assert.equal(focusCSS.canvasOutline, 'none', 'Unwanted focus outline');
+  assert.equal(focusCSS.userSelect, 'none', 'Browser text selection still enabled');
+  assert.equal(focusCSS.gamePaused, false, 'Click unexpectedly paused game');
+  await page.mouse.move(220, 280);
+  await page.mouse.down();
+  await page.mouse.move(700, 340, {steps:4});
+  await page.mouse.up();
+  assert.equal(await page.evaluate(() => window.getSelection()?.toString() || ''), '', 'Game drag selected page content');
+
   await page.locator('#pause-button').click();
   assert.equal(await page.locator('#pause-overlay').isVisible(), true, 'Pause overlay missing');
   await page.locator('#resume-button').click();

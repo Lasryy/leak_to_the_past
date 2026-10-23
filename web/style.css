@@ -33,7 +33,11 @@ body { min-height: 100vh; min-height: 100dvh; }
   aspect-ratio: 16 / 9;
   overflow: hidden;
   background: #000;
-  box-shadow: 0 0 0 1px #313747, 0 12px 32px rgb(0 0 0 / .3);
+  /* No visible frame/border around the game during play. */
+  box-shadow: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 canvas {
   display: block;
@@ -44,8 +48,10 @@ canvas {
   image-rendering: pixelated;
   outline: none;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
-canvas:focus-visible { outline: 2px solid #65fbec; outline-offset: -3px; }
 #loading, .pause-overlay {
   position: absolute;
   inset: 0;

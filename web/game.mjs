@@ -206,7 +206,7 @@ class Game {
     this.clock = now;
     this.sound.resume();
     this.syncControls();
-    this.canvas.focus({ preventScroll: true });
+    // Keyboard listeners are on window; the canvas does not need DOM focus.
   }
   togglePause() {
     if (this.paused) this.resumeGame();
@@ -267,9 +267,12 @@ class Game {
       this.clock = performance.now();
     });
     this.canvas.addEventListener('contextmenu', event => event.preventDefault());
+    this.canvas.addEventListener('dragstart', event => event.preventDefault());
+    this.canvas.addEventListener('selectstart', event => event.preventDefault());
     this.canvas.addEventListener('pointerdown', event => {
       if (event.button !== 0) return;
-      this.canvas.focus({ preventScroll: true });
+      // Prevent the browser's focus rectangle, text selection and image drag.
+      event.preventDefault();
       this.sound.unlock();
       if (!this.hintUntil) this.hintUntil = performance.now() + 5000;
       // Check current pressed keys, not previous animation-frame state.
