@@ -77,7 +77,7 @@ canvas {
   gap: 8px 16px;
 }
 .instructions { margin: 0; color: #b8becb; font-size: 11px; line-height: 1.6; flex: 1 1 370px; }
-.actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 0 auto; }
+.actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .ui-icon {
   width: 17px;
   height: 17px;
@@ -109,8 +109,23 @@ canvas {
 }
 .actions button:disabled { opacity: .42; cursor: not-allowed; }
 .pause-card .primary { background: #176e71; border-color: #4bd6ce; }
-.volume-label { font-size: 11px; color: #c9d0db; }
-#volume-control { width: 78px; accent-color: #5ce5db; cursor: pointer; }
+.audio-mix, .track-picker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+.audio-mix label, .audio-mix output, .track-picker output {
+  font: 10px Monocraft, monospace;
+  white-space: nowrap;
+  color: #c9d0db;
+}
+.audio-mix input { width: 66px; min-width: 46px; accent-color: #5ce5db; cursor: pointer; }
+.audio-mix output { min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+.track-picker output { min-width: 85px; text-align: center; }
+.track-picker button { padding: 8px 7px; min-width: 32px; font-size: 10px; }
+
 .touch-hint { display: none; font-size: 10px; color: #a6adbc; text-align: center; }
 .frame:fullscreen {
   width: 100%;
@@ -130,6 +145,11 @@ canvas {
   aspect-ratio: 16 / 9;
 }
 .frame:fullscreen .pause-overlay, .frame:fullscreen #loading { inset: 0; }
+@media (max-width: 1180px) {
+  .instructions { display: none; }
+  .controlbar { justify-content: center; }
+  :root { --reserve: 105px; }
+}
 @media (max-width: 900px) {
   :root { --reserve: 126px; }
   .controlbar { justify-content: center; }
@@ -148,15 +168,18 @@ canvas {
   .actions button { padding: 7px 10px; }
 }
 @media (max-width: 480px) {
-  .volume-label, #volume-control, .actions button .button-text { display: none; }
+  .actions button .button-text { display: none; }
+  .audio-mix { gap: 4px; }
+  .audio-mix input { width: 54px; }
+  .track-picker output { min-width: 70px; font-size: 9px; }
   .actions { justify-content: center; }
   .actions button { min-width: 44px; min-height: 38px; }
   .touch-hint { display: block; margin: 0; }
-  :root { --reserve: 145px; }
+  :root { --reserve: 176px; }
 }
 @media (max-width: 480px) and (max-height: 650px) {
   .touch-hint { display: none; }
-  :root { --reserve: 70px; }
+  :root { --reserve: 110px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pause-overlay { backdrop-filter: none; }

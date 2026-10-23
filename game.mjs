@@ -121,7 +121,13 @@ class Game {
       resume: document.getElementById('resume-button'),
       overlay: document.getElementById('pause-overlay'),
       mute: document.getElementById('sound-button'),
-      volume: document.getElementById('volume-control'),
+      music: document.getElementById('music-volume'),
+      sfx: document.getElementById('sfx-volume'),
+      musicValue: document.getElementById('music-value'),
+      sfxValue: document.getElementById('sfx-value'),
+      previousTrack: document.getElementById('previous-track'),
+      nextTrack: document.getElementById('next-track'),
+      trackLabel: document.getElementById('track-label'),
       fullscreen: document.getElementById('fullscreen-button'),
       exitFullscreen: document.getElementById('exit-fullscreen')
     };
@@ -175,7 +181,11 @@ class Game {
     c.mute.setAttribute('aria-pressed', String(this.sound.muted));
     c.mute.setAttribute('aria-label', this.sound.muted ? 'Rétablir le son' : 'Couper le son');
     c.mute.innerHTML = this.sound.muted ? buttonContent('mute','Muet') : buttonContent('audio','Son');
-    c.volume.value = String(Math.round(this.sound.master * 100));
+    c.music.value = String(Math.round(this.sound.musicLevel * 100));
+    c.sfx.value = String(Math.round(this.sound.sfxLevel * 100));
+    c.musicValue.textContent = c.music.value + ' %';
+    c.sfxValue.textContent = c.sfx.value + ' %';
+    c.trackLabel.textContent = 'Piste ' + this.sound.currentTrackNumber() + ' / 6';
     const full = document.fullscreenElement === c.frame;
     c.fullscreen.setAttribute('aria-label', full ? 'Quitter le plein écran' : 'Activer le plein écran');
     c.fullscreen.innerHTML = full ? buttonContent('shrink','Réduire') : buttonContent('expand','Plein écran');
@@ -224,12 +234,12 @@ class Game {
   }
   installInputs() {
     window.addEventListener('keydown', event => {
+      // Let the focused audio sliders consume arrows; don't move the player instead.
+      if (event.target instanceof HTMLElement && event.target.closest('button, input')) {
+        if (event.code === 'Space' || event.code === 'Enter' || event.code.startsWith('Arrow')) return;
+      }
       if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.code))
         event.preventDefault();
-      if (event.target instanceof HTMLElement && event.target.closest('button, input')) {
-        // Let Space activate the focused toolbar button instead of starting a game.
-        if (event.code === 'Space' || event.code === 'Enter') return;
-      }
       if (['Escape', 'KeyM'].includes(event.code)) event.preventDefault();
       if (event.code === 'Escape' && this.state === 'game' && !event.repeat) {
         this.togglePause();
@@ -285,8 +295,18 @@ class Game {
     this.controls.pause.addEventListener('click', () => this.togglePause());
     this.controls.resume.addEventListener('click', () => this.resumeGame());
     this.controls.mute.addEventListener('click', () => this.sound.toggleMute());
-    this.controls.volume.addEventListener('input', event =>
-      this.sound.setMaster(Number(event.target.value) / 100));
+    this.controls.music.addEventListener('input', event =>
+      this.sound.setMusicLevel(Number(event.target.value) / 100));
+    this.controls.sfx.addEventListener('input', event =>
+      this.sound.setSfxLevel(Number(event.target.value) / 100));
+    this.controls.previousTrack.addEventListener('click', () => {
+      this.sound.unlock();
+      this.sound.previousTrack();
+    });
+    this.controls.nextTrack.addEventListener('click', () => {
+      this.sound.unlock();
+      this.sound.nextTrack();
+    });
     this.controls.fullscreen.addEventListener('click', () => this.toggleFullscreen());
     this.controls.exitFullscreen.addEventListener('click', () => this.toggleFullscreen());
     document.addEventListener('fullscreenchange', () => this.syncControls());
