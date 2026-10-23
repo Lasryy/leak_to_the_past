@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0d0e14">
+  <meta name="description" content="Leak To The Past : survive, shoot and escape the darkness.">
+  <link rel="icon" type="image/png" href="./favicon.png">
+  <link rel="stylesheet" href="./style.css">
+  <title>Leak To The Past</title>
+</head>
+<body>
+  <main class="shell">
+    <div class="frame">
+      <canvas id="game" width="1280" height="720" tabindex="0"
+        aria-label="Leak To The Past, jeu en 2D. Déplacez-vous avec ZQSD ou WASD, tirez avec le clic gauche.">
+      </canvas>
+      <div id="loading" role="status" aria-live="polite">Chargement des ressources…</div>
+    </div>
+    <p class="instructions">ZQSD / WASD / flèches : se déplacer · Clic gauche à l'arrêt : tirer · Espace : jouer / rejouer · + / − : volume</p>
+  </main>
+  <script type="module" src="./game.mjs"></script>
+</body>
+</html>
