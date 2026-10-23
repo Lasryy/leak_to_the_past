@@ -1,30 +1,25 @@
-name: Deploy to GitHub Pages
+name: Check original Python game
 
 on:
   push:
     branches: [master]
+  pull_request:
+    branches: [master]
 
 permissions:
-  contents: write
-
-concurrency:
-  group: leak-to-the-past-pages
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  build-and-deploy:
+  python-syntax:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: '22'
-      - name: Check JS syntax and gameplay rules
-        run: npm test && node --check web/game.mjs && node --check web/logic.mjs
-      - name: Build static browser edition
-        run: npm run build
-      - name: Deploy static site to webversion
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          branch: webversion
-          folder: dist
+          python-version: '3.11'
+      - name: Validate Python source without installing runtime dependencies
+        run: python -m py_compile main.py sprites.py settings.py
+
+# IMPORTANT: master is the original Python source branch.
+# The browser port's own branch port/javascript builds and deploys to webversion.
+# DO NOT publish Pygbag from this workflow; it would overwrite the browser demo.

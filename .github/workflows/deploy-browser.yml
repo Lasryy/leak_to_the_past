@@ -1,0 +1,51 @@
+name: Publish JavaScript browser demo
+
+on:
+  push:
+    branches:
+      - port/javascript
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: leak-to-the-past-browser-release
+  cancel-in-progress: false
+
+jobs:
+  test-build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dedicated JavaScript source branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify logic, syntax and build
+        run: npm run check
+
+      - name: Assert essential website files exist
+        shell: bash
+        run: |
+          test -f dist/index.html
+          test -f dist/game.mjs
+          test -f dist/logic.mjs
+          test -f dist/.nojekyll
+          test -s dist/assets/graphics/spritesheet/leak.png
+          test -s dist/assets/graphics/spritesheet/snot.png
+          test -s dist/assets/graphics/HUD/title_screen.png
+          test -s dist/assets/audio/track_1.ogg
+          test -s dist/assets/font/Monocraft.ttf
+
+      # Only the compiled static site is published. Python master is untouched.
+      # In repo Settings > Pages: Deploy from a branch -> webversion -> /(root).
+      - name: Publish static files to webversion
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: webversion
+          folder: dist
+          clean: true

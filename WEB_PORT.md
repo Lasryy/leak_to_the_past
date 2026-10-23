@@ -1,58 +1,73 @@
-# Leak To The Past : version navigateur JavaScript
+# Leak To The Past : portage JavaScript pour GitHub Pages
 
-Ce port vit sur la branche port/javascript. Le jeu Python d'origine, la branche master
-et le site webversion ne sont pas modifies tant que la PR n'est pas fusionnee.
+## Séparation des sources
 
-## Architecture
+| Branche | Rôle |
+| --- | --- |
+| `master` | Jeu original Python + Pygame, README public |
+| `port/javascript` | Portage JavaScript pur, source de la démo navigateur |
+| `webversion` | Sortie statique générée automatiquement, servie par GitHub Pages |
 
-- JavaScript ES modules + HTML Canvas 2D + HTMLAudio
-- Pas de dependance npm, de CDN, de moteur externe ou de WebAssembly
-- Resolution interne 1280 x 720 (adaptee par CSS a la taille disponible)
-- Fichiers source dans web/ et ressources Python reutilisees depuis assets/
-- Build de publication autonome dans dist/
+Le portage JavaScript n'a pas besoin d'être fusionné dans master.
+L'ancienne publication Pygbag sur master a été désactivée.
+La PR initiale ciblant master doit être fermée sans fusion.
 
-## Commandes
+## Paramètres GitHub Pages
 
-Prérequis : Node.js 22+.
+Dans `Settings → Pages → Build and deployment` :
+- Source : **Deploy from a branch**
+- Branch : **webversion**
+- Folder : **/(root)**
+- Cliquer sur **Save**
 
-    npm test
-    npm run check
-    npm run build
+Adresse attendue : https://lasryy.github.io/leak_to_the_past/
 
-Pour essayer le build sur votre machine :
+Attention : le réglage Pages lui-même est manuel.
+Le workflow ne le modifie pas.
 
-    cd dist
-    python -m http.server 8000
+## Publication autonome
 
-Ouvrir http://localhost:8000, pas un fichier HTML ouvert avec file://.
+Chaque push sur `port/javascript` déclenche
+`.github/workflows/deploy-browser.yml`. Il vérifie la syntaxe,
+exécute les tests, construit le site dans `dist/`, puis pousse
+uniquement le contenu de `dist/` vers `webversion`.
+
+La compilation se fait sans CDN ni WebAssembly : JS natif,
+Canvas 2D et HTMLAudio.
+
+Un push sur `master` lance seulement le contrôle syntaxique Python
+et ne publie jamais Pygbag ni le portage JavaScript.
+
+## Tester localement
+
+Prérequis : Node 22+ et Python 3 facultatif pour le serveur HTTP.
+
+```sh
+git switch port/javascript
+npm run check
+cd dist
+python -m http.server 8000
+```
+
+Ouvrir http://localhost:8000. Ne pas utiliser `file://`.
 
 ## Contrôles
 
-- ZQSD / WASD / fleches : deplacement en 8 directions
-- Clic gauche : tir uniquement lorsque le personnage est immobile
-- Espace : demarrer / recommencer
-- + et - : volume
+- ZQSD / WASD / flèches : déplacement
+- Clic gauche lorsque le personnage est immobile : tir
+- Espace : commencer/rejouer
+- + / - : volume
 
-## Publication GitHub Pages
+## Limites et vérifications manuelles
 
-Le workflow verify-javascript.yml s'execute sur les commits de port/javascript,
-sans publier le jeu. Apres validation manuelle et fusion sur master, deploy.yml
-teste le code, construit dist/, puis publie sur la branche webversion.
+Vérifier une partie réelle sur Chrome, Edge et Firefox avant
+de considérer la fidélité validée. Comparer avec le jeu Python :
+progression des ennemis à 30/60/90/120 s, collisions, recharge
+avec sacrifice d'un cœur, effets visuels, sons, game over.
 
-Conserver la source GitHub Pages actuelle (webversion) dans les reglages du depot.
-Les chemins d'assets sont relatifs et supportent le sous-chemin /leak_to_the_past/.
+La conversion reproduit les principales mécaniques, mais le brouillard
+Canvas et les flashes des ennemis ne sont pas pixel-identiques à Pygame.
+Pas d'interface tactile prévue dans le projet original.
 
-## Parite et validations
-
-Sont portes : six types d'ennemis, progres temporel, IA bleu et violet, degats,
-collision sprites/mask, score, regeneration d'ennemis, trois coeurs,
-blood-reload, drops, flaques, anims 8 directions, HUD, sons OGG, musique,
-camera, brouillard et menus.
-
-Avant fusion : comparer une partie Python et JavaScript a froid, tester
-Chrome/Firefox/Edge et verifier la console. Les effets du brouillard
-(SDL BLEND_RGBA_SUB) et flash blanc (SDL BLEND_ADD) ont un rendu Canvas
-approximatif. Les variations de hasard peuvent differer. Aucun test
-complet en navigateur n'est encore declare comme reussi.
-
-Le port ne vise pas le tactile : les controles de depart sont clavier/souris.
+Les tests automatisés vérifient la logique et la construction ; ils ne
+remplacent pas les essais interactifs sur de vrais navigateurs.
