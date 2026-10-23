@@ -108,7 +108,7 @@ try {
   await page.locator('#fullscreen-button').click();
   await page.waitForFunction(() => document.fullscreenElement !== null, {timeout:5000});
   assert.equal(await page.evaluate(() => document.fullscreenElement?.id), 'game-frame');
-  await page.locator('#fullscreen-button').click();
+  await page.locator('#exit-fullscreen').click();
   await page.waitForFunction(() => document.fullscreenElement === null, {timeout:5000});
   assert.equal(await page.evaluate(() => Boolean(document.fullscreenElement)), false);
   await page.screenshot({path:'browser-screenshots/gameplay.png', fullPage:true});
