@@ -108,8 +108,27 @@ try {
   assert.equal(await muteButton.getAttribute('aria-pressed'), 'true', 'Mute failed');
   await muteButton.click();
   assert.equal(await muteButton.getAttribute('aria-pressed'), 'false', 'Unmute failed');
-  await page.locator('#volume-control').fill('30');
-  assert.equal(await page.locator('#volume-control').inputValue(), '30', 'Slider did not update volume');
+  const musicSlider = page.locator('#music-volume');
+  const sfxSlider = page.locator('#sfx-volume');
+  const originalTrack = (await page.locator('#track-label').textContent()).trim();
+  await musicSlider.fill('20');
+  assert.equal(await musicSlider.inputValue(), '20');
+  assert.equal(await page.locator('#music-value').textContent(), '20 %');
+  assert.equal(await sfxSlider.inputValue(), '70', 'Music slider changed SFX unexpectedly');
+  await sfxSlider.fill('35');
+  assert.equal(await sfxSlider.inputValue(), '35');
+  assert.equal(await page.locator('#sfx-value').textContent(), '35 %');
+  assert.equal(await musicSlider.inputValue(), '20', 'SFX slider changed music unexpectedly');
+  await page.locator('#next-track').click();
+  const nextTrack = (await page.locator('#track-label').textContent()).trim();
+  assert.notEqual(nextTrack, originalTrack, 'Next track did not change music');
+  await page.locator('#previous-track').click();
+  assert.equal((await page.locator('#track-label').textContent()).trim(), originalTrack,
+    'Previous track did not return to the original');
+  // Audio controls must also work using keyboard arrows while focused.
+  await musicSlider.focus();
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await musicSlider.inputValue(), '25', 'ArrowRight blocked on audio slider');
   // Decode representative OGG assets in the real browser, not just HTTP-check them.
   const audioFormats = await page.evaluate(async () => {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();

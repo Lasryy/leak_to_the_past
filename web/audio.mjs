@@ -1,5 +1,4 @@
-// Browser audio: decoded/cacheable effects through WebAudio, HTMLAudio fallback.
-// Music uses one persistent HTMLAudio instance and starts only after user gesture.
+// Independent music/SFX mixer for the browser. No autoplay before interaction.
 const sounds = {
   shoot: ['nasal_spray.ogg', 'nasal_spray 2.ogg', 'nasal_spray 3.ogg'],
   empty: ['nasal_spray empty.ogg', 'nasal_spray empty 2.ogg', 'nasal_spray empty 3.ogg'],
@@ -9,18 +8,33 @@ const sounds = {
   blood: ['blood_shoot.ogg', 'blood_shoot 2.ogg', 'blood_shoot 3.ogg', 'blood_shoot 4.ogg'],
   puddle: ['flaque.ogg', 'flaque 2.ogg', 'flaque 3.ogg']
 };
-const url = filename => './assets/audio/' + filename;
+const url = file => './assets/audio/' + file;
 const pick = values => values[Math.floor(Math.random() * values.length)];
-const cap = value => Math.min(1, Math.max(0, value));
+const cap = value => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+const level = value => Math.round(cap(value) * 100) / 100;
+const SETTINGS_KEY = 'leak-to-the-past-audio-v2';
+
+function readPreferences() {
+  try {
+    const preferences = JSON.parse(localStorage.getItem(SETTINGS_KEY));
+    if (preferences && typeof preferences === 'object') return preferences;
+  } catch { /* Private browsing / disabled storage: use defaults. */ }
+  return {};
+}
 
 export class Sound {
   constructor() {
-    this.master = .8;
+    const stored = readPreferences();
+    this.master = typeof stored.master === 'number' ? level(stored.master) : .8;
+    this.musicLevel = typeof stored.musicLevel === 'number' ? level(stored.musicLevel) : .5;
+    this.sfxLevel = typeof stored.sfxLevel === 'number' ? level(stored.sfxLevel) : .7;
     this.muted = false;
     this.unlocked = false;
     this.paused = false;
     this.music = null;
+    // Shuffle once per page load, then Prev/Next visits every track exactly once.
     this.tracks = [1, 2, 3, 4, 5, 6].sort(() => Math.random() - .5);
+    this.trackIndex = 0;
     this.context = null;
     this.buffers = new Map();
     this.channels = new Map();
@@ -29,14 +43,25 @@ export class Sound {
     this.preloadStarted = false;
     this.missing = new Set();
   }
+  savePreferences() {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        master: this.master,
+        musicLevel: this.musicLevel,
+        sfxLevel: this.sfxLevel
+      }));
+    } catch { /* Do not fail gameplay when storage is blocked. */ }
+  }
+  currentTrackNumber() { return this.tracks[this.trackIndex]; }
+  effectiveMusicVolume() { return this.muted ? 0 : this.master * this.musicLevel; }
+  effectiveSfxVolume() { return this.muted ? 0 : this.master * this.sfxLevel; }
   preload() {
     if (this.preloadStarted) return;
     this.preloadStarted = true;
     const Context = window.AudioContext || window.webkitAudioContext;
-    if (!Context) return; // Fall back to native HTMLAudio below.
+    if (!Context) return;
     try { this.context = new Context(); }
     catch (error) { console.warn('WebAudio unavailable, fallback active:', error); return; }
-    // Load once and decode in advance. No autoplay is attempted here.
     for (const name of Object.values(sounds).flat()) {
       fetch(url(name)).then(response => {
         if (!response.ok) throw new Error(response.status + ' ' + name);
@@ -54,9 +79,10 @@ export class Sound {
     this.unlocked = true;
     this.context?.resume().catch(() => {});
     if (!this.music) {
-      this.music = new Audio(url('track_' + this.tracks[0] + '.ogg'));
-      this.music.loop = true;
+      this.music = new Audio(url('track_' + this.currentTrackNumber() + '.ogg'));
+      this.music.loop = false;
       this.music.preload = 'auto';
+      this.music.addEventListener('ended', () => this.nextTrack());
       this.music.addEventListener('error', () =>
         console.warn('Music could not be loaded in this browser.'));
     }
@@ -64,19 +90,31 @@ export class Sound {
   }
   syncMusic() {
     if (!this.music) return;
-    this.music.volume = this.muted ? 0 : this.master * .5;
+    this.music.volume = this.effectiveMusicVolume();
     if (this.paused) {
       this.music.pause();
-    } else if (this.unlocked) {
+    } else if (this.unlocked && this.music.paused) {
       this.music.play().catch(error => {
         if (error?.name !== 'NotAllowedError' && error?.name !== 'AbortError')
           console.warn('Music playback unavailable:', error);
       });
     }
   }
+  switchTrack(offset) {
+    this.trackIndex = (this.trackIndex + offset + this.tracks.length) % this.tracks.length;
+    if (this.music) {
+      this.music.pause();
+      this.music.src = url('track_' + this.currentTrackNumber() + '.ogg');
+      this.music.load();
+      this.syncMusic();
+    }
+    this.onChange?.();
+    return this.currentTrackNumber();
+  }
+  nextTrack() { return this.switchTrack(1); }
+  previousTrack() { return this.switchTrack(-1); }
   play(group, channel = '') {
-    if (!this.unlocked || this.paused || this.muted || this.master === 0) return;
-    // Limit simultaneous voices so rapid kills cannot turn into loud clipping.
+    if (!this.unlocked || this.paused || this.effectiveSfxVolume() === 0) return;
     if (this.voices.size >= 24) return;
     const name = pick(sounds[group]);
     if (!name) return;
@@ -89,7 +127,7 @@ export class Sound {
       const source = this.context.createBufferSource();
       const gain = this.context.createGain();
       source.buffer = this.buffers.get(name);
-      gain.gain.value = this.master * .7;
+      gain.gain.value = this.effectiveSfxVolume();
       source.connect(gain).connect(this.context.destination);
       const voice = { stop: () => { try { source.stop(); } catch {} }, gain };
       this.voices.add(voice);
@@ -98,10 +136,9 @@ export class Sound {
       source.start();
       return;
     }
-    // Until WebAudio has decoded the sample, use a real browser audio element.
     const html = new Audio(url(name));
     html.preload = 'auto';
-    html.volume = this.master * .7;
+    html.volume = this.effectiveSfxVolume();
     const voice = { stop: () => { html.pause(); html.currentTime = 0; }, html };
     this.voices.add(voice);
     if (channel) this.channels.set(channel, voice);
@@ -112,8 +149,7 @@ export class Sound {
   }
   forget(voice, channel) {
     this.voices.delete(voice);
-    if (channel && this.channels.get(channel) === voice)
-      this.channels.delete(channel);
+    if (channel && this.channels.get(channel) === voice) this.channels.delete(channel);
   }
   stopChannel(channel) {
     const voice = this.channels.get(channel);
@@ -135,7 +171,15 @@ export class Sound {
   }
   volume(delta) { this.setMaster(this.master + delta); }
   setMaster(next) {
-    this.master = Math.round(cap(next) * 100) / 100;
+    this.master = level(next);
+    this.updateLevels();
+  }
+  setMusicLevel(next) {
+    this.musicLevel = level(next);
+    this.updateLevels();
+  }
+  setSfxLevel(next) {
+    this.sfxLevel = level(next);
     this.updateLevels();
   }
   toggleMute() {
@@ -145,10 +189,11 @@ export class Sound {
   }
   updateLevels() {
     for (const voice of this.voices) {
-      if (voice.gain) voice.gain.gain.value = this.muted ? 0 : this.master * .7;
-      if (voice.html) voice.html.volume = this.muted ? 0 : this.master * .7;
+      if (voice.gain) voice.gain.gain.value = this.effectiveSfxVolume();
+      if (voice.html) voice.html.volume = this.effectiveSfxVolume();
     }
     this.syncMusic();
+    this.savePreferences();
     this.onChange?.();
   }
 }

@@ -56,7 +56,10 @@ Ouvrir http://localhost:8000. Ne pas utiliser `file://`.
 - ZQSD / WASD / flèches : déplacement
 - Clic gauche lorsque le personnage est immobile : tir
 - Espace : commencer/rejouer
-- + / - : volume
+- + / - : volume général (raccourci clavier)
+- Curseurs Musique et SFX : volumes indépendants, mémorisés localement
+- Précédent / Suivant : choisir une des six musiques OGG
+- La piste suivante est lancée automatiquement à la fin d'une musique
 
 ## Limites et vérifications manuelles
 
