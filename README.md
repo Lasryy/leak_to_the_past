@@ -8,6 +8,11 @@
 
 The project focuses on implementing gameplay systems directly with Pygame rather than relying on a full game engine.
 
+> **Play in browser:** [Leak To The Past on GitHub Pages](https://lasryy.github.io/leak_to_the_past/)
+>
+> The **original game is written in Python + Pygame**. The browser demo is a separate JavaScript port maintained on the [`port/javascript` branch](https://github.com/Lasryy/leak_to_the_past/tree/port/javascript). The generated website is published on `webversion`. The JavaScript port is not merged into the Python source branch.
+
+
 ---
 
 ## Overview
