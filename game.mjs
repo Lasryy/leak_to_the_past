@@ -122,7 +122,8 @@ class Game {
       overlay: document.getElementById('pause-overlay'),
       mute: document.getElementById('sound-button'),
       volume: document.getElementById('volume-control'),
-      fullscreen: document.getElementById('fullscreen-button')
+      fullscreen: document.getElementById('fullscreen-button'),
+      exitFullscreen: document.getElementById('exit-fullscreen')
     };
     this.sound.onChange = () => this.syncControls();
     this.paused = false;
@@ -284,6 +285,7 @@ class Game {
     this.controls.volume.addEventListener('input', event =>
       this.sound.setMaster(Number(event.target.value) / 100));
     this.controls.fullscreen.addEventListener('click', () => this.toggleFullscreen());
+    this.controls.exitFullscreen.addEventListener('click', () => this.toggleFullscreen());
     document.addEventListener('fullscreenchange', () => this.syncControls());
   }
   spawnEnemy(now, type = null, position = null) {
