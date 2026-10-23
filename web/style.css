@@ -72,6 +72,19 @@ canvas:focus-visible { outline: 2px solid #65fbec; outline-offset: -3px; }
 }
 .instructions { margin: 0; color: #b8becb; font-size: 11px; line-height: 1.6; flex: 1 1 370px; }
 .actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 0 auto; }
+.ui-icon {
+  width: 17px;
+  height: 17px;
+  display: inline-block;
+  flex: 0 0 17px;
+  vertical-align: middle;
+}
+.actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
 .actions button, .pause-card button {
   border: 1px solid #434a5e;
   border-radius: 6px;
@@ -129,7 +142,7 @@ canvas:focus-visible { outline: 2px solid #65fbec; outline-offset: -3px; }
   .actions button { padding: 7px 10px; }
 }
 @media (max-width: 480px) {
-  .volume-label, #volume-control, .actions button span { display: none; }
+  .volume-label, #volume-control, .actions button .button-text { display: none; }
   .actions { justify-content: center; }
   .actions button { min-width: 44px; min-height: 38px; }
   .touch-hint { display: block; margin: 0; }

@@ -29,11 +29,11 @@
     <div class="controlbar" aria-label="Commandes du jeu">
       <p class="instructions">ZQSD / WASD / flèches : bouger <span aria-hidden="true">·</span> Clic gauche à l'arrêt : tirer <span aria-hidden="true">·</span> Espace : jouer <span aria-hidden="true">·</span> Échap : pause</p>
       <div class="actions">
-        <button type="button" id="pause-button" disabled aria-label="Mettre en pause">⏸ <span>Pause</span></button>
-        <button type="button" id="sound-button" aria-pressed="false" aria-label="Couper le son">🔊 <span>Son</span></button>
+        <button type="button" id="pause-button" disabled aria-label="Mettre en pause"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg><span class="button-text">Pause</span></button>
+        <button type="button" id="sound-button" aria-pressed="false" aria-label="Couper le son"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4Z"/><path d="M16 9c2 1.5 2 4.5 0 6"/><path d="M18.5 6c4 3 4 9 0 12"/></svg><span class="button-text">Son</span></button>
         <label class="volume-label" for="volume-control">Volume</label>
         <input id="volume-control" aria-label="Volume sonore" type="range" min="0" max="100" step="10" value="80">
-        <button type="button" id="fullscreen-button" aria-label="Activer le plein écran">⛶ <span>Plein écran</span></button>
+        <button type="button" id="fullscreen-button" aria-label="Activer le plein écran"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M4 15v5h5M20 15v5h-5"/></svg><span class="button-text">Plein écran</span></button>
       </div>
     </div>
     <p class="touch-hint">Jeu conçu pour clavier et souris. Pour un meilleur confort, utilisez un ordinateur.</p>
