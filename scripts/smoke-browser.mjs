@@ -84,10 +84,37 @@ try {
   assert.equal(await muteButton.getAttribute('aria-pressed'), 'false', 'Unmute failed');
   await page.locator('#volume-control').fill('30');
   assert.equal(await page.locator('#volume-control').inputValue(), '30', 'Slider did not update volume');
+  // Decode representative OGG assets in the real browser, not just HTTP-check them.
+  const audioFormats = await page.evaluate(async () => {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+      const result = [];
+      for (const file of ['nasal_spray.ogg','blue shoot.ogg','track_1.ogg']) {
+        const response = await fetch('./assets/audio/' + file);
+        if (!response.ok) throw new Error('Audio fetch failed: ' + file);
+        const buffer = await ctx.decodeAudioData(await response.arrayBuffer());
+        result.push({file, duration:buffer.duration, channels:buffer.numberOfChannels});
+      }
+      return result;
+    } finally {
+      await ctx.close();
+    }
+  });
+  for (const sound of audioFormats) {
+    assert(sound.duration > 0 && sound.channels >= 1, 'Audio failed to decode: ' + sound.file);
+  }
+
+  // The browser should be able to make the game frame fullscreen, then restore it.
+  await page.locator('#fullscreen-button').click();
+  await page.waitForFunction(() => document.fullscreenElement !== null, {timeout:5000});
+  assert.equal(await page.evaluate(() => document.fullscreenElement?.id), 'game-frame');
+  await page.locator('#fullscreen-button').click();
+  await page.waitForFunction(() => document.fullscreenElement === null, {timeout:5000});
+  assert.equal(await page.evaluate(() => Boolean(document.fullscreenElement)), false);
   await page.screenshot({path:'browser-screenshots/gameplay.png', fullPage:true});
   assert.deepEqual(missing, [], 'Some static resources failed to load');
   assert.deepEqual(exceptions, [], 'JavaScript runtime exceptions');
-  console.log('Browser UX smoke PASS: seven viewport sizes, no scroll, startup, pause, keyboard, audio controls.');
+  console.log('Browser UX smoke PASS: seven viewports, no scroll, pause, keyboard, mute/volume, OGG decoding, fullscreen.');
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
