@@ -1,3 +1,4 @@
+import { Sound } from './audio.mjs';
 import {
   WIDTH, HEIGHT, TILE, MAX_AMMO, DROP_CHANCE, DIRECTIONS, ENEMIES,
   clamp, rand, randint, pick, distance, normalized, directionName,
@@ -11,15 +12,6 @@ const imagePaths = {
   spray: 'graphics/HUD/nasal_spray.png',
   menu: 'graphics/HUD/title_screen.png',
   gameOver: 'graphics/HUD/game_over_screen.png'
-};
-const soundPaths = {
-  shoot: ['nasal_spray.ogg', 'nasal_spray 2.ogg', 'nasal_spray 3.ogg'],
-  empty: ['nasal_spray empty.ogg', 'nasal_spray empty 2.ogg', 'nasal_spray empty 3.ogg'],
-  blue: ['blue shoot.ogg', 'blue shoot 2.ogg', 'blue shoot 3.ogg'],
-  recharge: ['recharge.ogg', 'recharge 2.ogg', 'recharge 3.ogg'],
-  spawn: ['snot spawn.ogg', 'snot spawn 2.ogg', 'snot spawn 3.ogg'],
-  blood: ['blood_shoot.ogg', 'blood_shoot 2.ogg', 'blood_shoot 3.ogg', 'blood_shoot 4.ogg'],
-  puddle: ['flaque.ogg', 'flaque 2.ogg', 'flaque 3.ogg']
 };
 const asset = path => './assets/' + path;
 function createCanvas(width, height) {
@@ -79,58 +71,6 @@ function drawCentered(ctx, image, x, y, alpha = 1) {
   ctx.drawImage(image, Math.round(x - image.width / 2), Math.round(y - image.height / 2));
   ctx.restore();
 }
-class Sound {
-  constructor() {
-    this.master = 1;
-    this.music = null;
-    this.live = new Set();
-    this.channels = {};
-    this.unlocked = false;
-    this.tracks = [1, 2, 3, 4, 5, 6].sort(() => Math.random() - .5);
-  }
-  unlock() {
-    if (this.unlocked) return;
-    this.unlocked = true;
-    const track = this.tracks[0];
-    this.music = new Audio(asset('audio/track_' + track + '.ogg'));
-    this.music.loop = true;
-    this.music.preload = 'auto';
-    this.music.volume = this.master * .5;
-    this.music.play().catch(() => {});
-  }
-  play(group, channel = '') {
-    if (!this.unlocked) return;
-    if (channel && this.channels[channel] && !this.channels[channel].paused) {
-      if (channel === 'empty' || channel === 'puddle') return;
-      this.channels[channel].pause();
-      this.channels[channel].currentTime = 0;
-    }
-    const audio = new Audio(asset('audio/' + pick(soundPaths[group])));
-    audio.volume = this.master * .7;
-    this.live.add(audio);
-    if (channel) this.channels[channel] = audio;
-    const remove = () => {
-      this.live.delete(audio);
-      if (channel && this.channels[channel] === audio) delete this.channels[channel];
-    };
-    audio.addEventListener('ended', remove, { once: true });
-    audio.addEventListener('error', remove, { once: true });
-    audio.play().catch(remove);
-  }
-  stopChannel(channel) {
-    const audio = this.channels[channel];
-    if (audio) {
-      audio.pause();
-      this.live.delete(audio);
-      delete this.channels[channel];
-    }
-  }
-  volume(delta) {
-    this.master = clamp(Math.round((this.master + delta) * 10) / 10, 0, 1);
-    if (this.music) this.music.volume = this.master * .5;
-    for (const audio of this.live) audio.volume = this.master * .7;
-  }
-}
 class Game {
   constructor(canvas, images) {
     this.canvas = canvas;
@@ -158,6 +98,19 @@ class Game {
     this.spray = paintImage(images.spray, 64, 64, Math.PI / 4);
     this.heart = images.heart;
     this.sound = new Sound();
+    this.sound.preload();
+    this.controls = {
+      frame: document.getElementById('game-frame'),
+      pause: document.getElementById('pause-button'),
+      resume: document.getElementById('resume-button'),
+      overlay: document.getElementById('pause-overlay'),
+      mute: document.getElementById('sound-button'),
+      volume: document.getElementById('volume-control'),
+      fullscreen: document.getElementById('fullscreen-button')
+    };
+    this.sound.onChange = () => this.syncControls();
+    this.paused = false;
+    this.pauseStarted = 0;
     this.keys = new Set();
     this.state = 'menu';
     this.playedAt = 0;
@@ -167,6 +120,7 @@ class Game {
     this.clock = performance.now();
     this.createWorld();
     this.installInputs();
+    this.syncControls();
   }
   createWorld() {
     this.player = {
@@ -186,14 +140,89 @@ class Game {
   }
   startGame(now = performance.now()) {
     this.createWorld();
+    this.paused = false;
+    this.pauseStarted = 0;
+    this.sound.stopAll();
+    this.sound.resume();
     this.playedAt = now;
     this.nextSpawnAt = now + 1000;
     this.state = 'game';
+    this.syncControls();
+  }
+  syncControls() {
+    const c = this.controls;
+    c.pause.disabled = this.state !== 'game';
+    c.pause.setAttribute('aria-label', this.paused ? 'Reprendre' : 'Mettre en pause');
+    c.pause.innerHTML = this.paused ? '▶ <span>Reprendre</span>' : '⏸ <span>Pause</span>';
+    c.overlay.hidden = !this.paused;
+    c.mute.setAttribute('aria-pressed', String(this.sound.muted));
+    c.mute.setAttribute('aria-label', this.sound.muted ? 'Rétablir le son' : 'Couper le son');
+    c.mute.innerHTML = this.sound.muted ? '🔇 <span>Muet</span>' : '🔊 <span>Son</span>';
+    c.volume.value = String(Math.round(this.sound.master * 100));
+    const full = document.fullscreenElement === c.frame;
+    c.fullscreen.setAttribute('aria-label', full ? 'Quitter le plein écran' : 'Activer le plein écran');
+    c.fullscreen.innerHTML = full ? '⤢ <span>Réduire</span>' : '⛶ <span>Plein écran</span>';
+  }
+  pauseGame() {
+    if (this.state !== 'game' || this.paused) return;
+    this.paused = true;
+    this.pauseStarted = performance.now();
+    this.keys.clear();
+    this.sound.pause();
+    this.syncControls();
+  }
+  resumeGame() {
+    if (!this.paused || this.state !== 'game') return;
+    const now = performance.now();
+    const elapsed = Math.max(0, now - this.pauseStarted);
+    this.playedAt += elapsed;
+    this.nextSpawnAt += elapsed;
+    for (const item of [...this.bullets, ...this.enemyBullets, ...this.particles,
+        ...this.puddles, ...this.items]) item.born += elapsed;
+    for (const enemy of this.enemies) {
+      enemy.shotAt += elapsed;
+      enemy.tpAt += elapsed;
+      enemy.hitUntil += elapsed;
+    }
+    this.paused = false;
+    this.pauseStarted = 0;
+    this.clock = now;
+    this.sound.resume();
+    this.syncControls();
+    this.canvas.focus({ preventScroll: true });
+  }
+  togglePause() {
+    if (this.paused) this.resumeGame();
+    else this.pauseGame();
+  }
+  async toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (this.controls.frame.requestFullscreen)
+        await this.controls.frame.requestFullscreen();
+    } catch (error) {
+      console.warn('Fullscreen unavailable:', error);
+    }
+    this.syncControls();
   }
   installInputs() {
     window.addEventListener('keydown', event => {
       if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(event.code))
         event.preventDefault();
+      if (event.target instanceof HTMLElement && event.target.closest('button, input')) {
+        // Let Space activate the focused toolbar button instead of starting a game.
+        if (event.code === 'Space' || event.code === 'Enter') return;
+      }
+      if (['Escape', 'KeyM'].includes(event.code)) event.preventDefault();
+      if (event.code === 'Escape' && this.state === 'game' && !event.repeat) {
+        this.togglePause();
+        return;
+      }
+      if (event.code === 'KeyM' && !event.repeat) {
+        this.sound.toggleMute();
+        return;
+      }
+      if (this.paused) return;
       this.keys.add(event.code);
       if (event.repeat) return;
       this.sound.unlock();
@@ -209,9 +238,15 @@ class Game {
       }
     });
     window.addEventListener('keyup', event => this.keys.delete(event.code));
-    window.addEventListener('blur', () => this.keys.clear());
+    window.addEventListener('blur', () => {
+      this.keys.clear();
+      this.pauseGame();
+    });
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) this.keys.clear();
+      if (document.hidden) {
+        this.keys.clear();
+        this.pauseGame();
+      }
       this.clock = performance.now();
     });
     this.canvas.addEventListener('contextmenu', event => event.preventDefault());
@@ -220,11 +255,20 @@ class Game {
       this.canvas.focus({ preventScroll: true });
       this.sound.unlock();
       if (!this.hintUntil) this.hintUntil = performance.now() + 5000;
-      if (this.state === 'game' && !this.player.moving) {
+      // Check current pressed keys, not previous animation-frame state.
+      const currentMovement = movement(this.keys);
+      if (this.state === 'game' && !this.paused && !currentMovement.x && !currentMovement.y) {
         const target = getScreenPoint(this.canvas, event.clientX, event.clientY);
         this.shoot(target);
       }
     });
+    this.controls.pause.addEventListener('click', () => this.togglePause());
+    this.controls.resume.addEventListener('click', () => this.resumeGame());
+    this.controls.mute.addEventListener('click', () => this.sound.toggleMute());
+    this.controls.volume.addEventListener('input', event =>
+      this.sound.setMaster(Number(event.target.value) / 100));
+    this.controls.fullscreen.addEventListener('click', () => this.toggleFullscreen());
+    document.addEventListener('fullscreenchange', () => this.syncControls());
   }
   spawnEnemy(now, type = null, position = null) {
     const elapsed = (now - this.playedAt) / 1000;
@@ -455,6 +499,7 @@ class Game {
       this.hearts--;
       if (this.hearts <= 0) {
         this.state = 'game_over';
+        this.syncControls();
       } else {
         this.enemies.splice(this.enemies.indexOf(enemy), 1);
       }
@@ -475,7 +520,10 @@ class Game {
     });
     if (hasHit) {
       this.hearts--;
-      if (this.hearts <= 0) this.state = 'game_over';
+      if (this.hearts <= 0) {
+        this.state = 'game_over';
+        this.syncControls();
+      }
     }
     this.items = this.items.filter(item => {
       // Rotated 40x40 spray occupies a 56x56 bounding rectangle.
@@ -633,8 +681,8 @@ class Game {
     const animate = now => {
       const dt = Math.min(Math.max((now - this.clock)/1000, 0), .1);
       this.clock = now;
-      if (!document.hidden && this.state === 'game') this.update(dt, now);
-      this.render(now);
+      if (!document.hidden && this.state === 'game' && !this.paused) this.update(dt, now);
+      if (!document.hidden) this.render(now);
       requestAnimationFrame(animate);
     };
     requestAnimationFrame(animate);
