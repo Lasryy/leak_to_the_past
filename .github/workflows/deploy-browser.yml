@@ -28,6 +28,20 @@ jobs:
       - name: Verify logic, syntax and build
         run: npm run check
 
+      - name: Install browser test runner
+        run: npm install --no-save playwright@1.56.1
+
+      - name: Chromium UX smoke test
+        run: node scripts/smoke-browser.mjs
+
+      - name: Save desktop and mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-screenshots
+          path: browser-screenshots/
+          if-no-files-found: ignore
+
       - name: Assert essential website files exist
         shell: bash
         run: |
