@@ -42,7 +42,7 @@ function paintImage(image, width, height, angle = 0) {
   ctx.imageSmoothingEnabled = false;
   ctx.translate(width / 2, height / 2);
   ctx.rotate(angle);
-  ctx.drawImage(image, -image.width / 2, -image.height / 2);
+  ctx.drawImage(image, -20, -20, 40, 40);
   return canvas;
 }
 function cropFrame(sheet, col, row, size, tint) {

@@ -1,0 +1,38 @@
+name: Verify JS browser port
+
+on:
+  push:
+    branches: [port/javascript]
+  pull_request:
+    branches: [master]
+    paths:
+      - 'web/**'
+      - 'scripts/build-web.mjs'
+      - 'package.json'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: node --check web/logic.mjs && node --check web/game.mjs
+      - name: Regression tests
+        run: npm test
+      - name: Build GitHub Pages output
+        run: npm run build
+      - name: Check resulting site
+        run: |
+          test -f dist/index.html
+          test -f dist/game.mjs
+          test -f dist/assets/graphics/spritesheet/leak.png
+          test -f dist/assets/audio/track_1.ogg
+          test -f dist/assets/font/Monocraft.ttf

@@ -1,0 +1,10 @@
+{
+  "name": "leak-to-the-past-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test web/tests/*.test.mjs",
+    "build": "node scripts/build-web.mjs",
+    "check": "node --check web/logic.mjs && node --check web/game.mjs && npm test && npm run build"
+  }
+}
