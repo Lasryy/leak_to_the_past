@@ -71,6 +71,21 @@ function drawCentered(ctx, image, x, y, alpha = 1) {
   ctx.drawImage(image, Math.round(x - image.width / 2), Math.round(y - image.height / 2));
   ctx.restore();
 }
+
+const ICON_PATHS = {
+  pause: '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
+  play: '<path d="M8 5 19 12 8 19Z"/>',
+  audio: '<path d="M4 9h4l5-4v14l-5-4H4Z"/><path d="M16 9c2 1.5 2 4.5 0 6"/><path d="M18.5 6c4 3 4 9 0 12"/>',
+  mute: '<path d="M4 9h4l5-4v14l-5-4H4Z"/><path d="m17 9 5 6m0-6-5 6"/>',
+  expand: '<path d="M9 4H4v5M15 4h5v5M4 15v5h5M20 15v5h-5"/>',
+  shrink: '<path d="M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5"/>'
+};
+function buttonContent(icon, text) {
+  return '<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    ICON_PATHS[icon] + '</svg><span class="button-text">' + text + '</span>';
+}
+
 class Game {
   constructor(canvas, images) {
     this.canvas = canvas;
@@ -78,6 +93,7 @@ class Game {
     this.ctx.imageSmoothingEnabled = false;
     this.images = images;
     this.playerFrames = makeFrames(images.player, 128, null);
+    this.playerMasks = new WeakMap();
     this.enemyFrames = new Map();
     for (const [type, config] of Object.entries(ENEMIES)) {
       this.enemyFrames.set(type, makeFrames(images.enemy, config.size, config.color));
@@ -153,15 +169,15 @@ class Game {
     const c = this.controls;
     c.pause.disabled = this.state !== 'game';
     c.pause.setAttribute('aria-label', this.paused ? 'Reprendre' : 'Mettre en pause');
-    c.pause.innerHTML = this.paused ? '▶ <span>Reprendre</span>' : '⏸ <span>Pause</span>';
+    c.pause.innerHTML = this.paused ? buttonContent('play','Reprendre') : buttonContent('pause','Pause');
     c.overlay.hidden = !this.paused;
     c.mute.setAttribute('aria-pressed', String(this.sound.muted));
     c.mute.setAttribute('aria-label', this.sound.muted ? 'Rétablir le son' : 'Couper le son');
-    c.mute.innerHTML = this.sound.muted ? '🔇 <span>Muet</span>' : '🔊 <span>Son</span>';
+    c.mute.innerHTML = this.sound.muted ? buttonContent('mute','Muet') : buttonContent('audio','Son');
     c.volume.value = String(Math.round(this.sound.master * 100));
     const full = document.fullscreenElement === c.frame;
     c.fullscreen.setAttribute('aria-label', full ? 'Quitter le plein écran' : 'Activer le plein écran');
-    c.fullscreen.innerHTML = full ? '⤢ <span>Réduire</span>' : '⛶ <span>Plein écran</span>';
+    c.fullscreen.innerHTML = full ? buttonContent('shrink','Réduire') : buttonContent('expand','Plein écran');
   }
   pauseGame() {
     if (this.state !== 'game' || this.paused) return;
@@ -456,7 +472,11 @@ class Game {
     if (Math.abs(bullet.x - this.player.x) >= 70 || Math.abs(bullet.y - this.player.y) >= 70)
       return false;
     const ctx = frame.getContext('2d', { willReadFrequently: true });
-    const data = ctx.getImageData(0, 0, 128, 128).data;
+    let data = this.playerMasks.get(frame);
+    if (!data) {
+      data = ctx.getImageData(0, 0, 128, 128).data;
+      this.playerMasks.set(frame, data);
+    }
     const centerX = Math.round(this.player.x);
     const centerY = Math.round(this.player.y);
     for (let dy = -6; dy < 6; dy++) {
