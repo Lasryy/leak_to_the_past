@@ -4,20 +4,39 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0d0e14">
-  <meta name="description" content="Leak To The Past : survive, shoot and escape the darkness.">
+  <meta name="description" content="Leak To The Past : le jeu Python jouable en ligne grâce à son portage navigateur.">
   <link rel="icon" type="image/png" href="./favicon.png">
   <link rel="stylesheet" href="./style.css">
-  <title>Leak To The Past</title>
+  <title>Leak To The Past | Jouer</title>
 </head>
 <body>
-  <main class="shell">
-    <div class="frame">
+  <main class="shell" aria-label="Leak To The Past">
+    <div class="frame" id="game-frame">
       <canvas id="game" width="1280" height="720" tabindex="0"
-        aria-label="Leak To The Past, jeu en 2D. Déplacez-vous avec ZQSD ou WASD, tirez avec le clic gauche.">
+        aria-label="Leak To The Past. ZQSD ou WASD pour bouger, clic gauche à l'arrêt pour tirer, Échap pour la pause.">
+        Ce jeu requiert un navigateur compatible avec HTML Canvas.
       </canvas>
-      <div id="loading" role="status" aria-live="polite">Chargement des ressources…</div>
+      <div id="loading" role="status" aria-live="polite">Chargement du jeu…</div>
+      <div id="pause-overlay" class="pause-overlay" hidden aria-live="polite">
+        <div class="pause-card">
+          <strong>PAUSE</strong>
+          <p>La partie est arrêtée.</p>
+          <button type="button" id="resume-button" class="primary">Reprendre la partie</button>
+          <small>Échap pour reprendre</small>
+        </div>
+      </div>
     </div>
-    <p class="instructions">ZQSD / WASD / flèches : se déplacer · Clic gauche à l'arrêt : tirer · Espace : jouer / rejouer · + / − : volume</p>
+    <div class="controlbar" aria-label="Commandes du jeu">
+      <p class="instructions">ZQSD / WASD / flèches : bouger <span aria-hidden="true">·</span> Clic gauche à l'arrêt : tirer <span aria-hidden="true">·</span> Espace : jouer <span aria-hidden="true">·</span> Échap : pause</p>
+      <div class="actions">
+        <button type="button" id="pause-button" disabled aria-label="Mettre en pause">⏸ <span>Pause</span></button>
+        <button type="button" id="sound-button" aria-pressed="false" aria-label="Couper le son">🔊 <span>Son</span></button>
+        <label class="volume-label" for="volume-control">Volume</label>
+        <input id="volume-control" aria-label="Volume sonore" type="range" min="0" max="100" step="10" value="80">
+        <button type="button" id="fullscreen-button" aria-label="Activer le plein écran">⛶ <span>Plein écran</span></button>
+      </div>
+    </div>
+    <p class="touch-hint">Jeu conçu pour clavier et souris. Pour un meilleur confort, utilisez un ordinateur.</p>
   </main>
   <script type="module" src="./game.mjs"></script>
 </body>

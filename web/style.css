@@ -3,15 +3,142 @@
   src: url('./assets/font/Monocraft.ttf') format('truetype');
   font-display: swap;
 }
-:root { color-scheme: dark; background: #0d0e14; color: #e5e8ed; }
+:root {
+  color-scheme: dark;
+  background: #0d0e14;
+  color: #e9edf2;
+  font-family: Monocraft, ui-monospace, monospace;
+  --reserve: 108px;
+}
 * { box-sizing: border-box; }
-html, body { margin: 0; min-height: 100%; }
-body { font-family: Monocraft, monospace; display: grid; place-items: center; }
-.shell { width: min(100%, 1320px); margin: auto; padding: 18px 12px; }
-.frame { position: relative; width: 100%; aspect-ratio: 16 / 9; }
-canvas { display: block; width: 100%; height: 100%; background: #000; outline: none; image-rendering: pixelated; touch-action: none; }
-canvas:focus-visible { outline: 2px solid #4effef; outline-offset: 3px; }
-#loading { position: absolute; inset: 0; display: grid; place-items: center; background: #11131d; font-size: clamp(12px,1.4vw,19px); text-align:center; padding: 18px; }
-#loading[hidden] { display: none; }
-.instructions { color: #b8becb; text-align: center; line-height: 1.7; margin: 12px 0 0; font-size: clamp(9px, 1.15vw, 13px); }
-@media (max-width: 700px) { .shell { padding: 5px; } .instructions { font-size: 10px; } }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { min-height: 100vh; min-height: 100dvh; }
+.shell {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px max(10px, env(safe-area-inset-right)) 12px max(10px, env(safe-area-inset-left));
+  overflow: hidden;
+}
+.frame {
+  position: relative;
+  flex: 0 0 auto;
+  width: min(100%, 1280px, calc((100dvh - var(--reserve)) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 0 0 1px #313747, 0 12px 32px rgb(0 0 0 / .3);
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  image-rendering: pixelated;
+  outline: none;
+  touch-action: none;
+}
+canvas:focus-visible { outline: 2px solid #65fbec; outline-offset: -3px; }
+#loading, .pause-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+#loading { background: #11131d; font-size: clamp(12px, 1.4vw, 19px); padding: 18px; }
+#loading[hidden], .pause-overlay[hidden] { display: none; }
+.pause-overlay { background: rgb(7 8 16 / .74); backdrop-filter: blur(3px); }
+.pause-card { display: flex; flex-direction: column; gap: 12px; align-items: center; padding: 20px; }
+.pause-card strong { font-size: clamp(18px, 3vw, 34px); letter-spacing: 2px; }
+.pause-card p { margin: 0; font-size: clamp(12px, 1.3vw, 16px); }
+.pause-card small { color: #b3b9c8; font-size: clamp(9px, 1vw, 12px); }
+.controlbar {
+  width: min(100%, 1280px);
+  max-width: 1280px;
+  min-height: 52px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.instructions { margin: 0; color: #b8becb; font-size: 11px; line-height: 1.6; flex: 1 1 370px; }
+.actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 0 auto; }
+.actions button, .pause-card button {
+  border: 1px solid #434a5e;
+  border-radius: 6px;
+  background: #232938;
+  color: #eff3ff;
+  font: 12px Monocraft, monospace;
+  cursor: pointer;
+  padding: 10px 12px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.actions button:hover:not(:disabled), .pause-card button:hover { background: #344259; border-color: #87a3c2; }
+.actions button:focus-visible, .pause-card button:focus-visible, input:focus-visible {
+  outline: 2px solid #65fbec;
+  outline-offset: 2px;
+}
+.actions button:disabled { opacity: .42; cursor: not-allowed; }
+.pause-card .primary { background: #176e71; border-color: #4bd6ce; }
+.volume-label { font-size: 11px; color: #c9d0db; }
+#volume-control { width: 78px; accent-color: #5ce5db; cursor: pointer; }
+.touch-hint { display: none; font-size: 10px; color: #a6adbc; text-align: center; }
+.frame:fullscreen {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
+  display: grid;
+  place-items: center;
+  background: #000;
+  box-shadow: none;
+}
+.frame:fullscreen canvas {
+  width: min(100vw, calc(100dvh * 16 / 9));
+  height: auto;
+  max-height: 100dvh;
+  aspect-ratio: 16 / 9;
+}
+.frame:fullscreen .pause-overlay, .frame:fullscreen #loading { inset: 0; }
+@media (max-width: 900px) {
+  :root { --reserve: 126px; }
+  .controlbar { justify-content: center; }
+  .instructions { text-align: center; flex: 1 1 100%; }
+}
+@media (max-height: 650px) {
+  :root { --reserve: 86px; }
+  .shell { gap: 6px; padding-block: 6px; }
+  .instructions { display: none; }
+  .controlbar { min-height: 44px; }
+}
+@media (max-height: 420px) {
+  :root { --reserve: 62px; }
+  .shell { padding-block: 3px; gap: 3px; }
+  .controlbar { min-height: 36px; }
+  .actions button { padding: 7px 10px; }
+}
+@media (max-width: 480px) {
+  .volume-label, #volume-control, .actions button span { display: none; }
+  .actions { justify-content: center; }
+  .actions button { min-width: 44px; min-height: 38px; }
+  .touch-hint { display: block; margin: 0; }
+  :root { --reserve: 145px; }
+}
+@media (max-width: 480px) and (max-height: 650px) {
+  .touch-hint { display: none; }
+  :root { --reserve: 70px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pause-overlay { backdrop-filter: none; }
+}

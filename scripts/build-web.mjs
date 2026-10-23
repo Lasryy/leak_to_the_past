@@ -30,7 +30,7 @@ if (!existsSync(source)) throw new Error('Missing web source folder');
 // Only generated output is cleared. Original Python code is never deleted.
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
-for (const name of ['index.html', 'style.css', 'logic.mjs', 'game.mjs'])
+for (const name of ['index.html', 'style.css', 'logic.mjs', 'game.mjs', 'audio.mjs'])
   copyFileSync(join(source, name), join(out, name));
 copyFileSync(join(root, 'favicon.png'), join(out, 'favicon.png'));
 for (const folder of ['graphics', 'audio']) {
